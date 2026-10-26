@@ -1,0 +1,22 @@
+{
+  "name": "TableQuest",
+  "short_name": "TableQuest",
+  "description": "D&D character sheet and initiative tracker in one app: play as a player or run the table as GM",
+  "id": "./index.html",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "screencap-1.png", "sizes": "720x1400", "type": "image/png", "form_factor": "narrow", "label": "Choose Player or Game Master mode" },
+    { "src": "screencap-2.png", "sizes": "720x1400", "type": "image/png", "form_factor": "narrow", "label": "Character sheet with abilities, saves and skills" },
+    { "src": "screencap-3.png", "sizes": "720x1400", "type": "image/png", "form_factor": "narrow", "label": "Initiative tracker with sheet characters added" }
+  ]
+}
