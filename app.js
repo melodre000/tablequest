@@ -4857,6 +4857,9 @@ const SheetApp = (() => {
     }, fmt(d.save(k)))))))), /*#__PURE__*/React.createElement(SkillsCard, {
       c: c,
       set: set
+    }), /*#__PURE__*/React.createElement(FeaturesTab, {
+      c: c,
+      set: set
     }));
   }
 
@@ -4865,6 +4868,7 @@ const SheetApp = (() => {
     c,
     set
   }) {
+    const [showCommon, setShowCommon] = useState(false);
     return /*#__PURE__*/React.createElement("div", {
       className: "space-y-3"
     }, /*#__PURE__*/React.createElement(AttacksCard, {
@@ -4874,16 +4878,28 @@ const SheetApp = (() => {
       title: "Common Actions",
       icon: /*#__PURE__*/React.createElement(IconScroll, {
         className: "w-3.5 h-3.5"
-      })
-    }, /*#__PURE__*/React.createElement("dl", {
-      className: "space-y-2"
+      }),
+      right: /*#__PURE__*/React.createElement("button", {
+        onClick: () => setShowCommon(v => !v),
+        "aria-label": "Toggle common actions",
+        "aria-expanded": showCommon,
+        className: "text-neutral-400"
+      }, showCommon ? /*#__PURE__*/React.createElement(IconChevU, {
+        className: "w-4 h-4"
+      }) : /*#__PURE__*/React.createElement(IconChevD, {
+        className: "w-4 h-4"
+      }))
+    }, showCommon ? /*#__PURE__*/React.createElement("dl", {
+      className: "space-y-1.5"
     }, COMMON_ACTIONS.map(([n, t]) => /*#__PURE__*/React.createElement("div", {
       key: n
     }, /*#__PURE__*/React.createElement("dt", {
       className: "inline text-sm font-semibold text-amber-200"
     }, n, ". "), /*#__PURE__*/React.createElement("dd", {
       className: "inline text-xs text-neutral-400"
-    }, t))))));
+    }, t)))) : /*#__PURE__*/React.createElement("p", {
+      className: "text-xs text-neutral-500"
+    }, "Attack, Dash, Disengage, Dodge, Help, Hide, Ready, Search, Use an Object…")));
   }
 
   // ───────────────────────── SPELLS ─────────────────────────
@@ -6184,7 +6200,6 @@ const SheetApp = (() => {
           ...x.slots[i],
           used: 0
         };
-        const recover = Math.max(1, Math.floor(num(x.level) / 2));
         return {
           ...x,
           hp: {
@@ -6197,7 +6212,7 @@ const SheetApp = (() => {
             f: 0
           },
           slots,
-          hitDiceUsed: Math.max(0, num(x.hitDiceUsed) - recover),
+          hitDiceUsed: 0,
           exhaustion: Math.max(0, num(x.exhaustion) - 1),
           concentrating: "",
           features: x.features.map(f => f.recharge === "short" || f.recharge === "long" ? {
@@ -6250,7 +6265,7 @@ const SheetApp = (() => {
       className: "space-y-3"
     }, /*#__PURE__*/React.createElement("ul", {
       className: "text-sm text-neutral-300 list-disc pl-5 space-y-0.5"
-    }, /*#__PURE__*/React.createElement("li", null, "Hit points restored to full, temp HP cleared"), /*#__PURE__*/React.createElement("li", null, "All spell slots restored"), /*#__PURE__*/React.createElement("li", null, "Recover ", Math.max(1, Math.floor(num(c.level) / 2)), " hit dice"), /*#__PURE__*/React.createElement("li", null, "Short and long rest features and resources recharge"), /*#__PURE__*/React.createElement("li", null, "Exhaustion reduced by 1")), /*#__PURE__*/React.createElement("button", {
+    }, /*#__PURE__*/React.createElement("li", null, "Hit points restored to full, temp HP cleared"), /*#__PURE__*/React.createElement("li", null, "All spell slots restored"), /*#__PURE__*/React.createElement("li", null, "All hit dice recovered"), /*#__PURE__*/React.createElement("li", null, "Short and long rest features and resources recharge"), /*#__PURE__*/React.createElement("li", null, "Exhaustion reduced by 1")), /*#__PURE__*/React.createElement("button", {
       onClick: longRest,
       className: `${btnPrimary} w-full`
     }, "Take a long rest")));
@@ -6363,9 +6378,9 @@ const SheetApp = (() => {
     };
     return /*#__PURE__*/React.createElement("div", {
       ref: box,
-      className: "relative shrink-0"
+      className: "relative shrink-0 flex"
     }, open && /*#__PURE__*/React.createElement("div", {
-      className: "absolute right-0 bottom-full mb-2 w-64 rounded-2xl border border-amber-700/60 bg-neutral-900 p-2.5 shadow-2xl z-40"
+      className: "absolute right-0 bottom-full mb-3 w-64 rounded-2xl border border-amber-700/60 bg-neutral-900 p-2.5 shadow-2xl z-40"
     }, /*#__PURE__*/React.createElement("div", {
       className: "grid grid-cols-4 gap-1.5"
     }, [4, 6, 8, 10, 12, 20, 100].map(s => /*#__PURE__*/React.createElement("button", {
@@ -6404,10 +6419,10 @@ const SheetApp = (() => {
       onClick: () => open ? close() : setOpen(true),
       "aria-label": "Dice roller",
       "aria-expanded": open,
-      className: "w-10 h-10 rounded-full bg-amber-500 text-neutral-950 shadow-lg shadow-black/50 flex items-center justify-center active:scale-95"
+      className: `w-14 h-full flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold ${open ? "text-amber-300" : "text-neutral-300"} active:text-amber-300`
     }, /*#__PURE__*/React.createElement(IconD20, {
-      className: "w-6 h-6"
-    })));
+      className: "w-5 h-5"
+    }), "Dice"));
   }
   function CharactersModal({
     store,
@@ -6597,13 +6612,13 @@ const SheetApp = (() => {
   }
 
   // ───────────────────────── app ─────────────────────────
-  const TABS = [["features", "Features", IconCrown], ["actions", "Actions", IconSword], ["stats", "Stats", IconUser], ["spells", "Spells", IconSparkles], ["gear", "Gear", IconBag]];
+  const TABS = [["actions", "Actions", IconSword], ["stats", "Traits", IconUser], ["spells", "Spells", IconSparkles]];
   function App({
     onSwitch
   }) {
     const [store, setStore] = useState(loadStore);
     const [tab, setTab] = useState("stats");
-    const [view, setView] = useState("tabs"); // "tabs" or "notes"
+    const [view, setView] = useState("tabs"); // "tabs", "notes" or "gear"
     const touch = useRef(null);
     const [edit, setEdit] = useState(false);
     const [demo, setDemo] = useState(false);
@@ -6771,12 +6786,10 @@ const SheetApp = (() => {
       toast,
       pickPortrait
     };
-    const Tab = view === "notes" ? NotesTab : {
+    const Tab = view === "notes" ? NotesTab : view === "gear" ? GearTab : {
       stats: StatsTab,
       actions: ActionsTab,
-      spells: SpellsTab,
-      features: FeaturesTab,
-      gear: GearTab
+      spells: SpellsTab
     }[tab];
     return /*#__PURE__*/React.createElement(Ctx.Provider, {
       value: ctx
@@ -6819,6 +6832,14 @@ const SheetApp = (() => {
       title: labels.inspiration,
       className: "shrink-0 w-7 h-7 rounded-full border border-amber-400 bg-amber-500/20 text-amber-300 flex items-center justify-center"
     }, /*#__PURE__*/React.createElement(IconSparkles, {
+      className: "w-4 h-4"
+    })), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setView(v => v === "gear" ? "tabs" : "gear"),
+      "aria-pressed": view === "gear",
+      "aria-label": "Gear",
+      title: "Gear",
+      className: `w-9 h-9 rounded-lg border flex items-center justify-center ${view === "gear" ? "border-amber-400 bg-amber-500 text-neutral-950" : "border-neutral-700 bg-neutral-900 text-neutral-300"}`
+    }, /*#__PURE__*/React.createElement(IconBag, {
       className: "w-4 h-4"
     })), /*#__PURE__*/React.createElement("button", {
       onClick: () => setView(v => v === "notes" ? "tabs" : "notes"),
@@ -6887,29 +6908,16 @@ const SheetApp = (() => {
     })), /*#__PURE__*/React.createElement("nav", {
       className: "fixed bottom-0 inset-x-0 z-30 border-t border-amber-900/40 bg-neutral-950/95 backdrop-blur safe-bottom"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "relative"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "absolute left-0 bottom-0 rounded-tr-2xl border border-b-0 border-l-0 border-amber-900/40 bg-neutral-950/95 backdrop-blur pl-3 pr-2 pt-1.5 pb-0.5"
-    }, /*#__PURE__*/React.createElement("button", {
-      onClick: () => setModal("rest"),
-      "aria-label": "Rest",
-      title: "Rest",
-      className: "w-10 h-10 rounded-full border border-neutral-600 bg-neutral-900 text-neutral-200 flex items-center justify-center active:scale-95"
-    }, /*#__PURE__*/React.createElement(IconMoon, {
-      className: "w-5 h-5"
-    }))), /*#__PURE__*/React.createElement("div", {
-      className: "absolute right-0 bottom-0 rounded-tl-2xl border border-b-0 border-r-0 border-amber-900/40 bg-neutral-950/95 backdrop-blur pr-3 pl-2 pt-1.5 pb-0.5"
-    }, /*#__PURE__*/React.createElement(DiceRoller, {
-      onRoll: setResult
-    })), /*#__PURE__*/React.createElement("div", {
-      className: "max-w-md mx-auto flex justify-center items-center min-h-[1.75rem] px-16"
+      className: "max-w-md mx-auto flex justify-center items-center min-h-[1.75rem] px-3"
     }, /*#__PURE__*/React.createElement(ResourceStrip, {
       c: c,
       set: set,
       onAdd: () => setModal("addres"),
       onEdit: setResEdit
-    }))), /*#__PURE__*/React.createElement("div", {
-      className: "max-w-md mx-auto grid grid-cols-5"
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "max-w-md mx-auto flex items-stretch"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex-1 grid grid-cols-3"
     }, TABS.map(([k, label, Ic]) => /*#__PURE__*/React.createElement("button", {
       key: k,
       onClick: () => goTab(k),
@@ -6920,7 +6928,18 @@ const SheetApp = (() => {
       className: "w-5 h-5"
     }), label, /*#__PURE__*/React.createElement("span", {
       className: `h-0.5 w-6 rounded-full ${view === "tabs" && tab === k ? "bg-amber-400" : "bg-transparent"}`
-    }))))), /*#__PURE__*/React.createElement("input", {
+    })))), /*#__PURE__*/React.createElement("div", {
+      className: "shrink-0 my-1 mr-2 ml-1 flex items-stretch rounded-xl border border-amber-900/50 bg-neutral-900/80 px-1"
+    }, /*#__PURE__*/React.createElement(DiceRoller, {
+      onRoll: setResult
+    }), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setModal("rest"),
+      "aria-label": "Rest",
+      title: "Rest",
+      className: "w-14 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold text-neutral-300 active:text-amber-300"
+    }, /*#__PURE__*/React.createElement(IconMoon, {
+      className: "w-5 h-5"
+    }), "Rest")))), /*#__PURE__*/React.createElement("input", {
       ref: importRef,
       type: "file",
       accept: ".json,application/json",
