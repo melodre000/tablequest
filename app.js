@@ -4097,7 +4097,7 @@ const SheetApp = (() => {
       const raw = JSON.parse(localStorage.getItem(STORE_KEY));
       if (raw && raw.chars && raw.order && raw.order.length) return raw;
     } catch (e) {/* ignore */}
-    const s = sampleChar();
+    const s = newChar("New Character");
     return {
       chars: {
         [s.id]: s
