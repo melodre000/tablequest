@@ -4092,6 +4092,7 @@ const SheetApp = (() => {
 
   // ───────────────────────── storage ─────────────────────────
   const STORE_KEY = "initSheet.v1";
+  const ACCENTS = [["amber", "Amber", "#fbbf24"], ["yellow", "Yellow", "#facc15"], ["orange", "Orange", "#fb923c"], ["red", "Red", "#f87171"], ["rose", "Rose", "#fb7185"], ["fuchsia", "Fuchsia", "#e879f9"], ["violet", "Violet", "#a78bfa"], ["indigo", "Indigo", "#818cf8"], ["sky", "Sky", "#38bdf8"], ["teal", "Teal", "#2dd4bf"], ["emerald", "Emerald", "#34d399"], ["lime", "Lime", "#a3e635"]];
   function loadStore() {
     try {
       const raw = JSON.parse(localStorage.getItem(STORE_KEY));
@@ -4139,6 +4140,7 @@ const SheetApp = (() => {
   const IconSword = mkIcon("M5 19L19 5M14 5h5v5|M7 15l2 2|M3 21l3-3");
   const IconBook = mkIcon("M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5|M9 7h6");
   const IconSparkles = mkIcon("M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z|M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z");
+  const IconSliders = mkIcon("M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6");
   const IconBag = mkIcon("M6 8h12l1 13H5z|M9 8V6a3 3 0 0 1 6 0v2");
   const IconScroll = mkIcon("M7 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z|M8 9h8M8 13h8");
   const IconCrown = mkIcon("M3 8l4 4 5-7 5 7 4-4v11H3z");
@@ -4163,7 +4165,7 @@ const SheetApp = (() => {
   const IconArrowDown = mkIcon("M12 5v14M6 13l6 6 6-6");
   // ───────────────────────── shared UI ─────────────────────────
   const Ctx = createContext(null);
-  const inputCls = "bg-neutral-950 border border-neutral-700 rounded-lg px-2 py-1.5 text-sm text-neutral-100 outline-none focus:border-amber-500 placeholder:text-neutral-600 min-w-0";
+  const inputCls = "bg-neutral-950 border border-neutral-700 rounded-lg px-2 py-1.5 text-sm text-neutral-100 outline-none focus:border-pri-500 placeholder:text-neutral-600 min-w-0";
   function Card({
     title,
     icon,
@@ -4172,11 +4174,11 @@ const SheetApp = (() => {
     className = ""
   }) {
     return /*#__PURE__*/React.createElement("section", {
-      className: `rounded-2xl border border-amber-900/40 bg-neutral-900 gilded p-3 ${className}`
+      className: `rounded-2xl border border-pri-900/40 bg-neutral-900 gilded p-3 ${className}`
     }, (title || right) && /*#__PURE__*/React.createElement("div", {
       className: "flex items-center justify-between mb-2"
     }, /*#__PURE__*/React.createElement("h2", {
-      className: "flex items-center gap-1.5 font-serif text-[11px] font-bold uppercase tracking-[0.14em] text-amber-300"
+      className: "flex items-center gap-1.5 font-serif text-[11px] font-bold uppercase tracking-[0.14em] text-pri-300"
     }, icon, title), right), children);
   }
   function NumIn({
@@ -4184,11 +4186,13 @@ const SheetApp = (() => {
     onChange,
     min = 0,
     max = 999,
-    className = ""
+    className = "",
+    label
   }) {
     return /*#__PURE__*/React.createElement("input", {
       type: "number",
       inputMode: "numeric",
+      "aria-label": label,
       value: value === "" || value === undefined ? "" : value,
       onChange: e => onChange(e.target.value === "" ? "" : clamp(parseInt(e.target.value, 10) || 0, min, max)),
       className: `text-center ${inputCls} ${className}`
@@ -4249,22 +4253,44 @@ const SheetApp = (() => {
       className: "w-3.5 h-3.5"
     })));
   }
-  const PIP_COLORS = {
-    amber: "bg-amber-400 border-amber-300",
+
+  // Colors for expendables (pips and bottom-bar chips). "accent" follows the theme color.
+  const COLOR_OPTS = {
+    accent: "bg-pri-400 border-pri-300",
     sky: "bg-sky-400 border-sky-300",
-    violet: "bg-violet-400 border-violet-300",
     emerald: "bg-emerald-400 border-emerald-300",
-    rose: "bg-rose-400 border-rose-300"
+    rose: "bg-rose-400 border-rose-300",
+    violet: "bg-violet-400 border-violet-300",
+    orange: "bg-orange-400 border-orange-300",
+    teal: "bg-teal-400 border-teal-300",
+    white: "bg-neutral-200 border-neutral-100"
+  };
+  const COLOR_SWATCH = {
+    accent: "rgb(var(--pri-400))",
+    sky: "#38bdf8",
+    emerald: "#34d399",
+    rose: "#fb7185",
+    violet: "#a78bfa",
+    orange: "#fb923c",
+    teal: "#2dd4bf",
+    white: "#e5e5e5"
+  };
+  const PIP_COLORS = {
+    ...COLOR_OPTS,
+    amber: COLOR_OPTS.accent
   };
   // `total` pips; the first `total-used` are filled. Tap a filled pip to spend one, an empty pip to restore one.
+  // shape "bar" is the default tall rectangle used for expendables; "round" is for tallies like death saves.
   function Pips({
     total,
     used,
     onChange,
-    color = "amber",
-    label
+    color = "accent",
+    label,
+    shape = "bar"
   }) {
     const avail = Math.max(0, total - used);
+    const size = shape === "round" ? "w-5 h-5 rounded-full" : "w-4 h-6 rounded-md";
     return /*#__PURE__*/React.createElement("div", {
       className: "flex flex-wrap gap-1.5",
       role: "group",
@@ -4277,9 +4303,45 @@ const SheetApp = (() => {
         key: i,
         onClick: () => onChange(filled ? used + 1 : Math.max(0, used - 1)),
         "aria-label": `${label || "pip"} ${filled ? "available" : "spent"}`,
-        className: `w-5 h-5 rounded-full border-2 transition-colors ${filled ? PIP_COLORS[color] : "bg-transparent border-neutral-600"}`
+        className: `${size} border-2 transition-colors ${filled ? PIP_COLORS[color] : "bg-transparent border-neutral-600"}`
       });
     }));
+  }
+  function ColorPicker({
+    value,
+    onChange,
+    label = "Color"
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "flex flex-wrap gap-1.5",
+      role: "group",
+      "aria-label": label
+    }, Object.keys(COLOR_OPTS).map(k => /*#__PURE__*/React.createElement("button", {
+      key: k,
+      onClick: () => onChange(k),
+      "aria-label": `${label} ${k}`,
+      "aria-pressed": value === k,
+      style: {
+        background: COLOR_SWATCH[k]
+      },
+      className: `w-7 h-7 rounded-full border-2 ${value === k ? "border-white ring-2 ring-white/40" : "border-transparent"}`
+    })));
+  }
+  function DisplayToggle({
+    value,
+    onChange
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "grid grid-cols-3 gap-1 rounded-lg bg-neutral-950 p-1",
+      role: "group",
+      "aria-label": "Display"
+    }, [["auto", "Auto"], ["pips", "Pips"], ["number", "Number"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+      key: k,
+      onClick: () => onChange(k),
+      "aria-pressed": value === k,
+      "aria-label": `Display ${l}`,
+      className: `rounded-md py-1 text-xs font-semibold ${value === k ? "bg-pri-500 text-neutral-950" : "text-neutral-400"}`
+    }, l)));
   }
   function Modal({
     title,
@@ -4291,14 +4353,14 @@ const SheetApp = (() => {
       className: "fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/70 p-3",
       onClick: onClose
     }, /*#__PURE__*/React.createElement("div", {
-      className: `w-full ${wide ? "max-w-md" : "max-w-sm"} max-h-[88vh] overflow-y-auto rounded-2xl border border-amber-900/50 bg-neutral-900 p-4 shadow-2xl`,
+      className: `w-full ${wide ? "max-w-md" : "max-w-sm"} max-h-[88vh] overflow-y-auto rounded-2xl border border-pri-900/50 bg-neutral-900 p-4 shadow-2xl`,
       onClick: e => e.stopPropagation(),
       role: "dialog",
       "aria-label": title
     }, /*#__PURE__*/React.createElement("div", {
       className: "flex items-center justify-between mb-3"
     }, /*#__PURE__*/React.createElement("h2", {
-      className: "font-serif text-sm font-bold uppercase tracking-[0.14em] text-amber-300"
+      className: "font-serif text-sm font-bold uppercase tracking-[0.14em] text-pri-300"
     }, title), /*#__PURE__*/React.createElement("button", {
       onClick: onClose,
       "aria-label": "Close",
@@ -4308,7 +4370,7 @@ const SheetApp = (() => {
     }))), children));
   }
   const btnCls = "rounded-lg text-sm font-semibold py-2 px-3 transition-colors";
-  const btnPrimary = `${btnCls} bg-amber-500 hover:bg-amber-400 text-neutral-950`;
+  const btnPrimary = `${btnCls} bg-pri-500 hover:bg-pri-400 text-neutral-950`;
   const btnGhost = `${btnCls} bg-neutral-800 hover:bg-neutral-700 text-neutral-200`;
   const btnDanger = `${btnCls} bg-rose-700 hover:bg-rose-600 text-white`;
 
@@ -4348,9 +4410,9 @@ const SheetApp = (() => {
     level
   }) {
     return /*#__PURE__*/React.createElement("span", {
-      className: `inline-flex shrink-0 items-center justify-center w-4 h-4 rounded-full border ${level ? "border-amber-400" : "border-neutral-600"}`
+      className: `inline-flex shrink-0 items-center justify-center w-4 h-4 rounded-full border ${level ? "border-pri-400" : "border-neutral-600"}`
     }, level >= 1 && /*#__PURE__*/React.createElement("span", {
-      className: `block rounded-full bg-amber-400 ${level === 2 ? "w-2 h-2 ring-2 ring-neutral-900 outline outline-1 outline-amber-400" : "w-2.5 h-2.5"}`
+      className: `block rounded-full bg-pri-400 ${level === 2 ? "w-2 h-2 ring-2 ring-neutral-900 outline outline-1 outline-pri-400" : "w-2.5 h-2.5"}`
     }));
   }
 
@@ -4360,14 +4422,14 @@ const SheetApp = (() => {
     label,
     children,
     onClick,
-    accent = "text-amber-300",
+    accent = "text-pri-300",
     disabled
   }) {
     const Tag = onClick ? "button" : "div";
     return /*#__PURE__*/React.createElement(Tag, {
       onClick: onClick,
       disabled: onClick ? disabled : undefined,
-      className: `flex flex-col items-center justify-center gap-0.5 rounded-xl border border-neutral-700/80 bg-neutral-950/60 px-1 py-2 min-h-[4.5rem] ${onClick ? "hover:border-amber-600 active:bg-neutral-800" : ""}`
+      className: `flex flex-col items-center justify-center gap-0.5 rounded-xl border border-neutral-700/80 bg-neutral-950/60 px-1 py-2 min-h-[4.5rem] ${onClick ? "hover:border-pri-600 active:bg-neutral-800" : ""}`
     }, /*#__PURE__*/React.createElement("span", {
       className: `${accent}`
     }, icon), /*#__PURE__*/React.createElement("span", {
@@ -4549,7 +4611,7 @@ const SheetApp = (() => {
           type: "",
           notes: ""
         }),
-        className: "text-xs text-amber-300 hover:text-amber-200 flex items-center gap-1"
+        className: "text-xs text-pri-300 hover:text-pri-200 flex items-center gap-1"
       }, /*#__PURE__*/React.createElement(IconPlus, {
         className: "w-3.5 h-3.5"
       }), "Add") : null
@@ -4629,7 +4691,7 @@ const SheetApp = (() => {
     }, a.notes)), /*#__PURE__*/React.createElement("button", {
       onClick: () => rollD20(`${a.name} attack`, num(a.bonus)),
       "aria-label": `Roll ${a.name} attack`,
-      className: "rounded-lg border border-amber-700 bg-amber-900/20 px-2.5 py-1.5 text-sm font-bold text-amber-200 tabular-nums hover:bg-amber-900/40"
+      className: "rounded-lg border border-pri-700 bg-pri-900/20 px-2.5 py-1.5 text-sm font-bold text-pri-200 tabular-nums hover:bg-pri-900/40"
     }, fmt(num(a.bonus))), /*#__PURE__*/React.createElement("button", {
       onClick: () => rollDamage(`${a.name} damage${a.type ? ` (${a.type})` : ""}`, a.damage),
       "aria-label": `Roll ${a.name} damage`,
@@ -4688,7 +4750,7 @@ const SheetApp = (() => {
     }, name), /*#__PURE__*/React.createElement("span", {
       className: "text-[10px] uppercase text-neutral-500"
     }, ab), /*#__PURE__*/React.createElement("span", {
-      className: "w-9 text-right text-sm font-bold tabular-nums text-amber-200"
+      className: "w-9 text-right text-sm font-bold tabular-nums text-pri-200"
     }, fmt(d.skill(k)))))) : /*#__PURE__*/React.createElement("button", {
       onClick: () => setUserOpen(true),
       className: "w-full text-left text-xs text-neutral-500"
@@ -4783,7 +4845,7 @@ const SheetApp = (() => {
         inspiration: !c.inspiration
       }),
       "aria-pressed": c.inspiration,
-      className: `flex flex-col items-center justify-center gap-0.5 rounded-xl border px-1 py-2 min-h-[4.5rem] ${c.inspiration ? "border-amber-400 bg-amber-500/15 text-amber-200" : "border-neutral-700/80 bg-neutral-950/60 text-neutral-500"}`
+      className: `flex flex-col items-center justify-center gap-0.5 rounded-xl border px-1 py-2 min-h-[4.5rem] ${c.inspiration ? "border-pri-400 bg-pri-500/15 text-pri-200" : "border-neutral-700/80 bg-neutral-950/60 text-neutral-500"}`
     }, /*#__PURE__*/React.createElement(IconSparkles, {
       className: "w-5 h-5"
     }), /*#__PURE__*/React.createElement("span", {
@@ -4823,7 +4885,7 @@ const SheetApp = (() => {
       disabled: edit,
       onClick: () => rollD20(`${name} check`, d.mods[k]),
       "aria-label": `Roll ${name} check`,
-      className: `w-full my-0.5 rounded-lg py-1 text-2xl font-bold tabular-nums ${edit ? "text-neutral-300" : "text-amber-200 hover:bg-neutral-800 active:bg-neutral-700"}`
+      className: `w-full my-0.5 rounded-lg py-1 text-2xl font-bold tabular-nums ${edit ? "text-neutral-300" : "text-pri-200 hover:bg-neutral-800 active:bg-neutral-700"}`
     }, fmt(d.mods[k])), edit ? /*#__PURE__*/React.createElement(NumIn, {
       value: c.abilities[k],
       onChange: v => set(x => ({
@@ -4847,13 +4909,13 @@ const SheetApp = (() => {
         }
       })) : () => rollD20(`${name} save`, d.save(k)),
       "aria-label": `${name} saving throw`,
-      className: "mt-1.5 w-full flex items-center justify-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900 py-1.5 text-xs hover:border-amber-700 active:bg-neutral-800"
+      className: "mt-1.5 w-full flex items-center justify-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900 py-1.5 text-xs hover:border-pri-700 active:bg-neutral-800"
     }, /*#__PURE__*/React.createElement(ProfDot, {
       level: c.saveProf[k] ? 1 : 0
     }), /*#__PURE__*/React.createElement("span", {
       className: "text-neutral-400"
     }, "Save"), /*#__PURE__*/React.createElement("span", {
-      className: "font-bold tabular-nums text-amber-200"
+      className: "font-bold tabular-nums text-pri-200"
     }, fmt(d.save(k)))))))), /*#__PURE__*/React.createElement(SkillsCard, {
       c: c,
       set: set
@@ -4894,7 +4956,7 @@ const SheetApp = (() => {
     }, COMMON_ACTIONS.map(([n, t]) => /*#__PURE__*/React.createElement("div", {
       key: n
     }, /*#__PURE__*/React.createElement("dt", {
-      className: "inline text-sm font-semibold text-amber-200"
+      className: "inline text-sm font-semibold text-pri-200"
     }, n, ". "), /*#__PURE__*/React.createElement("dd", {
       className: "inline text-xs text-neutral-400"
     }, t)))) : /*#__PURE__*/React.createElement("p", {
@@ -4956,7 +5018,7 @@ const SheetApp = (() => {
       "aria-expanded": open,
       className: "w-full flex items-center gap-2 px-2.5 py-2 text-left"
     }, /*#__PURE__*/React.createElement("span", {
-      className: `w-2 h-2 rounded-full shrink-0 ${s.prepared ? "bg-amber-400" : "bg-neutral-700"}`,
+      className: `w-2 h-2 rounded-full shrink-0 ${s.prepared ? "bg-pri-400" : "bg-neutral-700"}`,
       title: s.prepared ? "Prepared" : "Not prepared"
     }), /*#__PURE__*/React.createElement("span", {
       className: "flex-1 text-sm font-semibold truncate"
@@ -5163,7 +5225,7 @@ const SheetApp = (() => {
       onChange: u => setSlot(l, {
         used: u
       }),
-      color: "sky",
+      color: c.slotsColor || "sky",
       label: `Level ${l} slot`
     }) : /*#__PURE__*/React.createElement("span", {
       className: "text-xs text-neutral-600"
@@ -5240,7 +5302,7 @@ const SheetApp = (() => {
 
   // ───────────────────────── FEATURES ─────────────────────────
   const SOURCE_STYLE = {
-    Class: "border-amber-700 text-amber-300",
+    Class: "border-pri-700 text-pri-300",
     Subclass: "border-orange-700 text-orange-300",
     Species: "border-emerald-700 text-emerald-300",
     Background: "border-sky-700 text-sky-300",
@@ -5314,7 +5376,7 @@ const SheetApp = (() => {
         onChange: u => ops.upd(f.id, {
           used: u
         }),
-        color: "amber",
+        color: "accent",
         label: `${f.name} use`
       }), /*#__PURE__*/React.createElement("button", {
         onClick: () => setOpenId(open ? null : f.id),
@@ -5498,7 +5560,7 @@ const SheetApp = (() => {
       "aria-valuenow": Math.round(pct),
       "aria-label": "Carrying capacity"
     }, /*#__PURE__*/React.createElement("div", {
-      className: `h-full rounded-full ${over ? "bg-rose-500" : "bg-amber-500"}`,
+      className: `h-full rounded-full ${over ? "bg-rose-500" : "bg-pri-500"}`,
       style: {
         width: `${pct}%`
       }
@@ -5517,7 +5579,7 @@ const SheetApp = (() => {
       }),
       "aria-pressed": it.equipped,
       "aria-label": `${it.equipped ? "Unequip" : "Equip"} ${it.name}`,
-      className: `w-6 h-6 shrink-0 rounded-md border flex items-center justify-center ${it.equipped ? "border-amber-400 bg-amber-500/20 text-amber-300" : "border-neutral-600 text-transparent"}`
+      className: `w-6 h-6 shrink-0 rounded-md border flex items-center justify-center ${it.equipped ? "border-pri-400 bg-pri-500/20 text-pri-300" : "border-neutral-600 text-transparent"}`
     }, /*#__PURE__*/React.createElement(IconCheck, {
       className: "w-4 h-4"
     })), edit ? /*#__PURE__*/React.createElement(TextIn, {
@@ -5640,7 +5702,7 @@ const SheetApp = (() => {
       length: total
     }, (_, i) => /*#__PURE__*/React.createElement("span", {
       key: i,
-      className: `w-1.5 h-1.5 rounded-full border ${i < total - used ? color : "border-neutral-600 bg-transparent"}`
+      className: `w-1.5 h-3 rounded-[2px] border ${i < total - used ? color : "border-neutral-600 bg-transparent"}`
     })));
   }
   // Bottom bar: Rest (left), tappable resource summary (center), Dice (right, in App).
@@ -5655,7 +5717,8 @@ const SheetApp = (() => {
         label: romanOf(l),
         total: m,
         used: num(c.slots[l].used),
-        color: "bg-sky-400 border-sky-300",
+        color: COLOR_OPTS[c.slotsColor] || COLOR_OPTS.sky,
+        display: c.slotsDisplay || "auto",
         name: `Level ${l} slots`
       });
     }
@@ -5669,7 +5732,8 @@ const SheetApp = (() => {
           label: initials,
           total: num(r.max),
           used: num(r.used),
-          color: "bg-amber-400 border-amber-300",
+          color: COLOR_OPTS[r.color] || COLOR_OPTS.accent,
+          display: r.display || "auto",
           name: r.name
         });
       }
@@ -5723,7 +5787,7 @@ const SheetApp = (() => {
       return /*#__PURE__*/React.createElement("button", {
         onClick: onAdd,
         "aria-label": "Add resource",
-        className: "flex items-center gap-1 text-[11px] font-semibold text-neutral-500 hover:text-amber-300 px-2 py-0.5"
+        className: "flex items-center gap-1 text-[11px] font-semibold text-neutral-500 hover:text-pri-300 px-2 py-0.5"
       }, /*#__PURE__*/React.createElement(IconPlus, {
         className: "w-3 h-3"
       }), "Add Resource");
@@ -5751,7 +5815,7 @@ const SheetApp = (() => {
         change(it, 1);
       },
       className: "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[9px] font-bold text-neutral-400 active:bg-neutral-800 select-none touch-manipulation"
-    }, it.label, it.total <= 8 ? /*#__PURE__*/React.createElement(MiniDots, {
+    }, it.label, (it.display === "number" ? false : it.display === "pips" ? it.total <= 20 : it.total <= 8) ? /*#__PURE__*/React.createElement(MiniDots, {
       total: it.total,
       used: it.used,
       color: it.color
@@ -5760,7 +5824,7 @@ const SheetApp = (() => {
     }, it.total - it.used, "/", it.total))), edit && /*#__PURE__*/React.createElement("button", {
       onClick: onAdd,
       "aria-label": "Add resource",
-      className: "ml-0.5 w-6 h-6 rounded-full border border-amber-600 text-amber-300 flex items-center justify-center"
+      className: "ml-0.5 w-6 h-6 rounded-full border border-pri-600 text-pri-300 flex items-center justify-center"
     }, /*#__PURE__*/React.createElement(IconPlus, {
       className: "w-3.5 h-3.5"
     })));
@@ -5785,7 +5849,26 @@ const SheetApp = (() => {
         onClose: onClose
       }, /*#__PURE__*/React.createElement("p", {
         className: "text-sm text-neutral-300"
-      }, "Slots come from the Spells tab (edit mode sets how many you have at each level)."), /*#__PURE__*/React.createElement("button", {
+      }, "Slots come from the Spells tab (edit mode sets how many you have at each level)."), /*#__PURE__*/React.createElement("div", {
+        className: "mt-3 space-y-2"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-xs text-neutral-500"
+      }, "Color"), /*#__PURE__*/React.createElement(ColorPicker, {
+        value: c.slotsColor || "sky",
+        onChange: v => set(x => ({
+          ...x,
+          slotsColor: v
+        })),
+        label: "Slot color"
+      }), /*#__PURE__*/React.createElement("p", {
+        className: "text-xs text-neutral-500 pt-1"
+      }, "Show as"), /*#__PURE__*/React.createElement(DisplayToggle, {
+        value: c.slotsDisplay || "auto",
+        onChange: v => set(x => ({
+          ...x,
+          slotsDisplay: v
+        }))
+      })), /*#__PURE__*/React.createElement("button", {
         onClick: () => {
           set(x => ({
             ...x,
@@ -5793,7 +5876,7 @@ const SheetApp = (() => {
           }));
           onClose();
         },
-        className: `${btnDanger} w-full mt-3`
+        className: `${btnDanger} w-full mt-4`
       }, "Remove spell slots from this bar"), /*#__PURE__*/React.createElement("button", {
         onClick: onClose,
         className: `${btnGhost} w-full mt-2`
@@ -5835,8 +5918,23 @@ const SheetApp = (() => {
       value: "short"
     }, "Short rest"), /*#__PURE__*/React.createElement("option", {
       value: "long"
-    }, "Long rest"))), /*#__PURE__*/React.createElement("div", {
-      className: "grid grid-cols-2 gap-2 pt-1"
+    }, "Long rest"))), /*#__PURE__*/React.createElement("p", {
+      className: "text-xs text-neutral-500 pt-1"
+    }, "Color"), /*#__PURE__*/React.createElement(ColorPicker, {
+      value: r.color || "accent",
+      onChange: v => upd({
+        color: v
+      }),
+      label: "Resource color"
+    }), /*#__PURE__*/React.createElement("p", {
+      className: "text-xs text-neutral-500 pt-1"
+    }, "Show as"), /*#__PURE__*/React.createElement(DisplayToggle, {
+      value: r.display || "auto",
+      onChange: v => upd({
+        display: v
+      })
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "grid grid-cols-2 gap-2 pt-2"
     }, /*#__PURE__*/React.createElement("button", {
       onClick: () => {
         set(x => ({
@@ -5860,6 +5958,7 @@ const SheetApp = (() => {
     const [name, setName] = useState("");
     const [max, setMax] = useState(3);
     const [rc, setRc] = useState("long");
+    const [color, setColor] = useState("accent");
     const add = () => {
       if (!name.trim()) return;
       set(x => ({
@@ -5870,7 +5969,9 @@ const SheetApp = (() => {
           name: name.trim(),
           max,
           used: 0,
-          recharge: rc
+          recharge: rc,
+          color,
+          display: "auto"
         }]
       }));
       onClose();
@@ -5905,7 +6006,11 @@ const SheetApp = (() => {
       value: "short"
     }, "Short rest"), /*#__PURE__*/React.createElement("option", {
       value: "long"
-    }, "Long rest"))), /*#__PURE__*/React.createElement("button", {
+    }, "Long rest"))), /*#__PURE__*/React.createElement(ColorPicker, {
+      value: color,
+      onChange: setColor,
+      label: "New resource color"
+    }), /*#__PURE__*/React.createElement("button", {
       onClick: add,
       className: `${btnPrimary} w-full`
     }, "Add"), c.slotsHidden && hasSlotData && /*#__PURE__*/React.createElement("button", {
@@ -6010,7 +6115,7 @@ const SheetApp = (() => {
     size = "w-11 h-11"
   }) {
     return /*#__PURE__*/React.createElement("span", {
-      className: `${size} shrink-0 rounded-full overflow-hidden border-2 border-amber-600/70 bg-neutral-800 flex items-center justify-center text-amber-200 font-serif font-bold`
+      className: `${size} shrink-0 rounded-full overflow-hidden border-2 border-pri-600/70 bg-neutral-800 flex items-center justify-center text-pri-200 font-serif font-bold`
     }, c.portrait ? /*#__PURE__*/React.createElement("img", {
       src: c.portrait,
       alt: "",
@@ -6151,7 +6256,8 @@ const SheetApp = (() => {
         s: 3 - u
       }),
       color: "emerald",
-      label: "Death save success"
+      label: "Death save success",
+      shape: "round"
     })), /*#__PURE__*/React.createElement("div", {
       className: "flex items-center gap-3"
     }, /*#__PURE__*/React.createElement("span", {
@@ -6163,7 +6269,8 @@ const SheetApp = (() => {
         f: 3 - u
       }),
       color: "rose",
-      label: "Death save failure"
+      label: "Death save failure",
+      shape: "round"
     }))), /*#__PURE__*/React.createElement("button", {
       onClick: deathSave,
       className: `${btnPrimary} w-full mt-3`
@@ -6243,7 +6350,7 @@ const SheetApp = (() => {
       key: k,
       onClick: () => setKind(k),
       "aria-pressed": kind === k,
-      className: `flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold ${kind === k ? "bg-amber-500 text-neutral-950" : "text-neutral-400"}`
+      className: `flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold ${kind === k ? "bg-pri-500 text-neutral-950" : "text-neutral-400"}`
     }, /*#__PURE__*/React.createElement(Ic, {
       className: "w-4 h-4"
     }), label))), kind === "short" ? /*#__PURE__*/React.createElement("div", {
@@ -6251,7 +6358,7 @@ const SheetApp = (() => {
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-sm text-neutral-300"
     }, "Spend hit dice to heal. You have ", /*#__PURE__*/React.createElement("span", {
-      className: "font-bold text-amber-200"
+      className: "font-bold text-pri-200"
     }, d.hitDiceLeft), " of ", num(c.level), " d", num(c.hitDie), " left."), /*#__PURE__*/React.createElement("button", {
       onClick: spendHitDie,
       disabled: d.hitDiceLeft === 0 || num(c.hp.cur) >= num(c.hp.max),
@@ -6380,7 +6487,7 @@ const SheetApp = (() => {
       ref: box,
       className: "relative shrink-0 flex"
     }, open && /*#__PURE__*/React.createElement("div", {
-      className: "absolute right-0 bottom-full mb-3 w-64 rounded-2xl border border-amber-700/60 bg-neutral-900 p-2.5 shadow-2xl z-40"
+      className: "absolute right-0 bottom-full mb-3 w-64 rounded-2xl border border-pri-700/60 bg-neutral-900 p-2.5 shadow-2xl z-40"
     }, /*#__PURE__*/React.createElement("div", {
       className: "grid grid-cols-4 gap-1.5"
     }, [4, 6, 8, 10, 12, 20, 100].map(s => /*#__PURE__*/React.createElement("button", {
@@ -6388,7 +6495,7 @@ const SheetApp = (() => {
       onClick: () => pick(s),
       "aria-label": sel === s ? `Roll ${count}d${s}` : `Select d${s}`,
       "aria-pressed": sel === s,
-      className: `h-10 rounded-xl text-sm font-bold ${sel === s ? "bg-amber-500 text-neutral-950" : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"}`
+      className: `h-10 rounded-xl text-sm font-bold ${sel === s ? "bg-pri-500 text-neutral-950" : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"}`
     }, "d", s))), sel ? /*#__PURE__*/React.createElement("div", {
       className: "mt-2.5"
     }, /*#__PURE__*/React.createElement("div", {
@@ -6400,7 +6507,7 @@ const SheetApp = (() => {
       value: Math.min(count, 10),
       onChange: e => setCount(Number(e.target.value)),
       "aria-label": "Dice count slider",
-      className: "flex-1 w-0 min-w-0 accent-amber-500"
+      className: "flex-1 w-0 min-w-0 accent-pri-500"
     }), /*#__PURE__*/React.createElement("input", {
       type: "number",
       inputMode: "numeric",
@@ -6419,7 +6526,7 @@ const SheetApp = (() => {
       onClick: () => open ? close() : setOpen(true),
       "aria-label": "Dice roller",
       "aria-expanded": open,
-      className: `w-14 h-full flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold ${open ? "text-amber-300" : "text-neutral-300"} active:text-amber-300`
+      className: `w-14 h-full flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold ${open ? "text-pri-300" : "text-neutral-300"} active:text-pri-300`
     }, /*#__PURE__*/React.createElement(IconD20, {
       className: "w-5 h-5"
     }), "Dice"));
@@ -6534,7 +6641,7 @@ const SheetApp = (() => {
       const on = id === activeId;
       return /*#__PURE__*/React.createElement("div", {
         key: id,
-        className: `rounded-xl border p-2 ${on ? "border-amber-500 bg-amber-500/10" : "border-neutral-700/80 bg-neutral-950/60"}`
+        className: `rounded-xl border p-2 ${on ? "border-pri-500 bg-pri-500/10" : "border-neutral-700/80 bg-neutral-950/60"}`
       }, /*#__PURE__*/React.createElement("button", {
         onClick: () => switchTo(id),
         className: "w-full flex items-center gap-2 text-left",
@@ -6549,7 +6656,7 @@ const SheetApp = (() => {
       }, c.name), /*#__PURE__*/React.createElement("span", {
         className: "block text-xs text-neutral-500 truncate"
       }, [c.cls, `Lv ${num(c.level)}`, c.species].filter(Boolean).join(" · "))), on && /*#__PURE__*/React.createElement("span", {
-        className: "text-[10px] uppercase text-amber-300"
+        className: "text-[10px] uppercase text-pri-300"
       }, "Active")), /*#__PURE__*/React.createElement("div", {
         className: "flex justify-end gap-3 mt-1 pr-1 text-neutral-500"
       }, /*#__PURE__*/React.createElement("button", {
@@ -6605,10 +6712,68 @@ const SheetApp = (() => {
         }
       })),
       "aria-pressed": settings.ruleset === r,
-      className: `rounded-lg py-1.5 text-sm font-semibold ${settings.ruleset === r ? "bg-amber-500 text-neutral-950" : "text-neutral-400"}`
+      className: `rounded-lg py-1.5 text-sm font-semibold ${settings.ruleset === r ? "bg-pri-500 text-neutral-950" : "text-neutral-400"}`
     }, r))), /*#__PURE__*/React.createElement("p", {
       className: "text-[11px] text-neutral-600 mt-2"
     }, "Characters are saved on this device only. Use Export to keep a backup or move them to another device.")));
+  }
+  function SettingsView({
+    c,
+    set
+  }) {
+    const {
+      settings,
+      setAccent,
+      pickPortrait
+    } = useContext(Ctx);
+    const accent = settings.accent || "amber";
+    return /*#__PURE__*/React.createElement("div", {
+      className: "space-y-3"
+    }, /*#__PURE__*/React.createElement(Card, {
+      title: "Accent color",
+      icon: /*#__PURE__*/React.createElement(IconSliders, {
+        className: "w-3.5 h-3.5"
+      })
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-xs text-neutral-500 mb-2"
+    }, "Replaces the gold highlight color across the sheet."), /*#__PURE__*/React.createElement("div", {
+      className: "grid grid-cols-6 gap-2",
+      role: "group",
+      "aria-label": "Accent color"
+    }, ACCENTS.map(([k, label, hex]) => /*#__PURE__*/React.createElement("button", {
+      key: k,
+      onClick: () => setAccent(k),
+      "aria-label": `Accent ${label}`,
+      "aria-pressed": accent === k,
+      title: label,
+      style: {
+        background: hex
+      },
+      className: `h-10 rounded-xl border-2 ${accent === k ? "border-white ring-2 ring-white/40" : "border-transparent"}`
+    })))), /*#__PURE__*/React.createElement(Card, {
+      title: "Profile picture",
+      icon: /*#__PURE__*/React.createElement(IconCamera, {
+        className: "w-3.5 h-3.5"
+      })
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-3"
+    }, /*#__PURE__*/React.createElement(Avatar, {
+      c: c,
+      size: "w-20 h-20"
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "flex-1 space-y-1.5"
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: pickPortrait,
+      className: `${btnPrimary} w-full`
+    }, c.portrait ? "Change picture" : "Upload picture"), c.portrait && /*#__PURE__*/React.createElement("button", {
+      onClick: () => set(x => ({
+        ...x,
+        portrait: ""
+      })),
+      className: `${btnGhost} w-full`
+    }, "Remove"))), /*#__PURE__*/React.createElement("p", {
+      className: "text-[11px] text-neutral-500 mt-2"
+    }, "Applies to ", c.name || "this character", ". It's cropped to a square and stored on this device.")));
   }
 
   // ───────────────────────── app ─────────────────────────
@@ -6618,7 +6783,7 @@ const SheetApp = (() => {
   }) {
     const [store, setStore] = useState(loadStore);
     const [tab, setTab] = useState("stats");
-    const [view, setView] = useState("tabs"); // "tabs", "notes" or "gear"
+    const [view, setView] = useState("tabs"); // "tabs", "notes", "gear" or "settings"
     const touch = useRef(null);
     const [edit, setEdit] = useState(false);
     const [demo, setDemo] = useState(false);
@@ -6664,6 +6829,17 @@ const SheetApp = (() => {
     const activeId = store.chars[store.activeId] ? store.activeId : store.order[0];
     const c = normalizeChar(store.chars[activeId]);
     const labels = labelsFor(store.settings.ruleset);
+    const accent = store.settings.accent || "amber";
+    useEffect(() => {
+      document.documentElement.setAttribute("data-accent", accent);
+    }, [accent]);
+    const setAccent = k => setStore(s => ({
+      ...s,
+      settings: {
+        ...s.settings,
+        accent: k
+      }
+    }));
     const d = derive(c);
     const set = fn => setStore(s => ({
       ...s,
@@ -6779,6 +6955,8 @@ const SheetApp = (() => {
     const ctx = {
       edit,
       labels,
+      settings: store.settings,
+      setAccent,
       rollD20,
       rollDamage,
       spendHitDie,
@@ -6786,7 +6964,7 @@ const SheetApp = (() => {
       toast,
       pickPortrait
     };
-    const Tab = view === "notes" ? NotesTab : view === "gear" ? GearTab : {
+    const Tab = view === "notes" ? NotesTab : view === "gear" ? GearTab : view === "settings" ? SettingsView : {
       stats: StatsTab,
       actions: ActionsTab,
       spells: SpellsTab
@@ -6800,11 +6978,11 @@ const SheetApp = (() => {
       onClick: () => setDemo(false),
       "aria-hidden": "true"
     }), /*#__PURE__*/React.createElement("header", {
-      className: "sticky top-0 z-30 border-b border-amber-900/40 bg-neutral-950/95 backdrop-blur safe-top px-3 pb-2"
+      className: "sticky top-0 z-30 border-b border-pri-900/40 bg-neutral-950/95 backdrop-blur safe-top px-3 pb-2"
     }, /*#__PURE__*/React.createElement("div", {
       className: "max-w-md mx-auto"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "flex items-center gap-2"
+      className: "flex items-center gap-1.5"
     }, /*#__PURE__*/React.createElement("button", {
       onClick: () => setModal("chars"),
       "aria-label": "Characters",
@@ -6821,16 +6999,16 @@ const SheetApp = (() => {
     }, /*#__PURE__*/React.createElement("span", {
       className: "block font-serif text-sm font-bold truncate leading-tight"
     }, c.name || "Unnamed"), /*#__PURE__*/React.createElement("span", {
-      className: "block text-xs text-amber-200/80 truncate leading-tight"
+      className: "block text-xs text-pri-200/80 truncate leading-tight"
     }, [c.cls, `Level ${num(c.level) || 1}`].filter(Boolean).join(" · "))), demo ? /*#__PURE__*/React.createElement(IconChevU, {
-      className: "w-4 h-4 shrink-0 text-amber-300"
+      className: "w-4 h-4 shrink-0 text-pri-300"
     }) : /*#__PURE__*/React.createElement(IconChevD, {
       className: "w-4 h-4 shrink-0 text-neutral-500"
     })), c.inspiration && /*#__PURE__*/React.createElement("span", {
       role: "img",
       "aria-label": "Inspiration",
       title: labels.inspiration,
-      className: "shrink-0 w-7 h-7 rounded-full border border-amber-400 bg-amber-500/20 text-amber-300 flex items-center justify-center"
+      className: "shrink-0 w-7 h-7 rounded-full border border-pri-400 bg-pri-500/20 text-pri-300 flex items-center justify-center"
     }, /*#__PURE__*/React.createElement(IconSparkles, {
       className: "w-4 h-4"
     })), /*#__PURE__*/React.createElement("button", {
@@ -6838,7 +7016,7 @@ const SheetApp = (() => {
       "aria-pressed": view === "gear",
       "aria-label": "Gear",
       title: "Gear",
-      className: `w-9 h-9 rounded-lg border flex items-center justify-center ${view === "gear" ? "border-amber-400 bg-amber-500 text-neutral-950" : "border-neutral-700 bg-neutral-900 text-neutral-300"}`
+      className: `w-8 h-8 rounded-lg border flex items-center justify-center ${view === "gear" ? "border-pri-400 bg-pri-500 text-neutral-950" : "border-neutral-700 bg-neutral-900 text-neutral-300"}`
     }, /*#__PURE__*/React.createElement(IconBag, {
       className: "w-4 h-4"
     })), /*#__PURE__*/React.createElement("button", {
@@ -6846,15 +7024,23 @@ const SheetApp = (() => {
       "aria-pressed": view === "notes",
       "aria-label": "Notes",
       title: "Notes",
-      className: `w-9 h-9 rounded-lg border flex items-center justify-center ${view === "notes" ? "border-amber-400 bg-amber-500 text-neutral-950" : "border-neutral-700 bg-neutral-900 text-neutral-300"}`
+      className: `w-8 h-8 rounded-lg border flex items-center justify-center ${view === "notes" ? "border-pri-400 bg-pri-500 text-neutral-950" : "border-neutral-700 bg-neutral-900 text-neutral-300"}`
     }, /*#__PURE__*/React.createElement(IconScroll, {
+      className: "w-4 h-4"
+    })), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setView(v => v === "settings" ? "tabs" : "settings"),
+      "aria-pressed": view === "settings",
+      "aria-label": "Settings",
+      title: "Settings",
+      className: `w-8 h-8 rounded-lg border flex items-center justify-center ${view === "settings" ? "border-pri-400 bg-pri-500 text-neutral-950" : "border-neutral-700 bg-neutral-900 text-neutral-300"}`
+    }, /*#__PURE__*/React.createElement(IconSliders, {
       className: "w-4 h-4"
     })), /*#__PURE__*/React.createElement("button", {
       onClick: () => setEdit(v => !v),
       "aria-pressed": edit,
       "aria-label": "Edit mode",
       title: "Edit mode",
-      className: `w-9 h-9 rounded-lg border flex items-center justify-center ${edit ? "border-amber-400 bg-amber-500 text-neutral-950" : "border-neutral-700 bg-neutral-900 text-neutral-300"}`
+      className: `w-8 h-8 rounded-lg border flex items-center justify-center ${edit ? "border-pri-400 bg-pri-500 text-neutral-950" : "border-neutral-700 bg-neutral-900 text-neutral-300"}`
     }, /*#__PURE__*/React.createElement(IconPencil, {
       className: "w-4 h-4"
     }))), /*#__PURE__*/React.createElement("div", {
@@ -6880,24 +7066,37 @@ const SheetApp = (() => {
       className: "tabular-nums"
     }, num(c.hp.cur), " / ", num(c.hp.max), num(c.hp.temp) > 0 && /*#__PURE__*/React.createElement("span", {
       className: "text-sky-300 text-xs"
-    }, " +", num(c.hp.temp))))), /*#__PURE__*/React.createElement("span", {
+    }, " +", num(c.hp.temp))))), edit ? /*#__PURE__*/React.createElement("label", {
+      className: "h-8 px-1.5 rounded-lg border border-pri-500 bg-neutral-900 flex items-center gap-1 text-sm font-bold",
+      title: "Armor class"
+    }, /*#__PURE__*/React.createElement(IconShield, {
+      className: "w-4 h-4 text-pri-300 shrink-0"
+    }), /*#__PURE__*/React.createElement(NumIn, {
+      value: c.ac,
+      onChange: v => set(x => ({
+        ...x,
+        ac: v
+      })),
+      className: "w-11 !px-1 !py-0.5",
+      label: "Armor class"
+    })) : /*#__PURE__*/React.createElement("span", {
       className: "h-8 px-2.5 rounded-lg border border-neutral-700 bg-neutral-900 flex items-center gap-1 text-sm font-bold",
       title: "Armor class"
     }, /*#__PURE__*/React.createElement(IconShield, {
-      className: "w-4 h-4 text-amber-300"
+      className: "w-4 h-4 text-pri-300"
     }), num(c.ac))), /*#__PURE__*/React.createElement(ConditionsBar, {
       c: c
     }), demo && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
       className: "absolute left-0 right-0 top-full z-30 px-3"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "max-w-md mx-auto rounded-b-2xl border border-t-0 border-amber-900/50 bg-neutral-900 p-3 shadow-2xl",
+      className: "max-w-md mx-auto rounded-b-2xl border border-t-0 border-pri-900/50 bg-neutral-900 p-3 shadow-2xl",
       role: "region",
       "aria-label": "Demographics"
     }, /*#__PURE__*/React.createElement(DemographicsPanel, {
       c: c,
       set: set
     })))))), edit && /*#__PURE__*/React.createElement("div", {
-      className: "bg-amber-500/15 border-b border-amber-700/50 text-center text-xs text-amber-200 py-1"
+      className: "bg-pri-500/15 border-b border-pri-700/50 text-center text-xs text-pri-200 py-1"
     }, "Edit mode: taps change your sheet instead of rolling. Tap the pencil when you're done."), /*#__PURE__*/React.createElement("main", {
       className: "max-w-md mx-auto px-3 pt-3 pb-32 min-h-[70vh]",
       onTouchStart: onTouchStart,
@@ -6906,7 +7105,7 @@ const SheetApp = (() => {
       c: c,
       set: set
     })), /*#__PURE__*/React.createElement("nav", {
-      className: "fixed bottom-0 inset-x-0 z-30 border-t border-amber-900/40 bg-neutral-950/95 backdrop-blur safe-bottom"
+      className: "fixed bottom-0 inset-x-0 z-30 border-t border-pri-900/40 bg-neutral-950/95 backdrop-blur safe-bottom"
     }, /*#__PURE__*/React.createElement("div", {
       className: "max-w-md mx-auto flex justify-center items-center min-h-[1.75rem] px-3"
     }, /*#__PURE__*/React.createElement(ResourceStrip, {
@@ -6923,20 +7122,20 @@ const SheetApp = (() => {
       onClick: () => goTab(k),
       "aria-current": view === "tabs" && tab === k ? "page" : undefined,
       "aria-label": label,
-      className: `flex flex-col items-center gap-0.5 pt-2 pb-1 text-[10px] font-semibold ${view === "tabs" && tab === k ? "text-amber-300" : "text-neutral-500"}`
+      className: `flex flex-col items-center gap-0.5 pt-2 pb-1 text-[10px] font-semibold ${view === "tabs" && tab === k ? "text-pri-300" : "text-neutral-500"}`
     }, /*#__PURE__*/React.createElement(Ic, {
       className: "w-5 h-5"
     }), label, /*#__PURE__*/React.createElement("span", {
-      className: `h-0.5 w-6 rounded-full ${view === "tabs" && tab === k ? "bg-amber-400" : "bg-transparent"}`
+      className: `h-0.5 w-6 rounded-full ${view === "tabs" && tab === k ? "bg-pri-400" : "bg-transparent"}`
     })))), /*#__PURE__*/React.createElement("div", {
-      className: "shrink-0 my-1 mr-2 ml-1 flex items-stretch rounded-xl border border-amber-900/50 bg-neutral-900/80 px-1"
+      className: "shrink-0 my-1 mr-2 ml-1 flex items-stretch rounded-xl border border-pri-900/50 bg-neutral-900/80 px-1"
     }, /*#__PURE__*/React.createElement(DiceRoller, {
       onRoll: setResult
     }), /*#__PURE__*/React.createElement("button", {
       onClick: () => setModal("rest"),
       "aria-label": "Rest",
       title: "Rest",
-      className: "w-14 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold text-neutral-300 active:text-amber-300"
+      className: "w-14 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold text-neutral-300 active:text-pri-300"
     }, /*#__PURE__*/React.createElement(IconMoon, {
       className: "w-5 h-5"
     }), "Rest")))), /*#__PURE__*/React.createElement("input", {
@@ -6988,14 +7187,14 @@ const SheetApp = (() => {
       className: "fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4",
       onClick: () => setResult(null)
     }, /*#__PURE__*/React.createElement("div", {
-      className: "w-full max-w-xs rounded-2xl border border-amber-700/60 bg-neutral-900 p-5 text-center shadow-2xl",
+      className: "w-full max-w-xs rounded-2xl border border-pri-700/60 bg-neutral-900 p-5 text-center shadow-2xl",
       onClick: e => e.stopPropagation(),
       role: "dialog",
       "aria-label": "Roll result"
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-xs uppercase tracking-wider text-neutral-400"
     }, result.label), /*#__PURE__*/React.createElement("p", {
-      className: `mt-1 font-serif text-7xl font-bold leading-none tabular-nums ${result.crit === "20" ? "text-emerald-300" : result.crit === "1" ? "text-rose-400" : "text-amber-300"}`,
+      className: `mt-1 font-serif text-7xl font-bold leading-none tabular-nums ${result.crit === "20" ? "text-emerald-300" : result.crit === "1" ? "text-rose-400" : "text-pri-300"}`,
       "data-testid": "roll-total"
     }, result.total), result.crit === "20" && /*#__PURE__*/React.createElement("p", {
       className: "mt-2 text-sm font-semibold text-emerald-300"
