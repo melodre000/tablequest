@@ -5377,7 +5377,7 @@ const SheetApp = (() => {
         onChange: u => ops.upd(f.id, {
           used: u
         }),
-        color: "accent",
+        color: f.color || "accent",
         label: `${f.name} use`
       }), /*#__PURE__*/React.createElement("button", {
         onClick: () => setOpenId(open ? null : f.id),
@@ -5436,7 +5436,14 @@ const SheetApp = (() => {
         value: "short"
       }, "Short rest"), /*#__PURE__*/React.createElement("option", {
         value: "long"
-      }, "Long rest"))), /*#__PURE__*/React.createElement("div", {
+      }, "Long rest"))), num(f.max) > 0 && /*#__PURE__*/React.createElement("button", {
+        onClick: () => ops.upd(f.id, {
+          bar: !f.bar
+        }),
+        "aria-pressed": !!f.bar,
+        "aria-label": `Pin ${f.name} to resource bar`,
+        className: `self-start text-xs rounded-lg border px-2.5 py-1 ${f.bar ? "border-pri-500 bg-pri-500/15 text-pri-200" : "border-neutral-700 text-neutral-400"}`
+      }, f.bar ? "On resource bar" : "Show on resource bar"), /*#__PURE__*/React.createElement("div", {
         className: "flex justify-end gap-2"
       }, /*#__PURE__*/React.createElement("button", {
         onClick: () => ops.move(f.id, -1),
@@ -5464,7 +5471,14 @@ const SheetApp = (() => {
         className: "text-xs text-neutral-600"
       }, "No description."), num(f.max) > 0 && /*#__PURE__*/React.createElement("p", {
         className: "text-[11px] text-neutral-500"
-      }, num(f.max) - num(f.used), "/", num(f.max), " uses", f.recharge !== "none" ? ` · recharges on ${f.recharge} rest` : ""))));
+      }, num(f.max) - num(f.used), "/", num(f.max), " uses", f.recharge !== "none" ? ` · recharges on ${f.recharge} rest` : ""), num(f.max) > 0 && /*#__PURE__*/React.createElement("button", {
+        onClick: () => ops.upd(f.id, {
+          bar: !f.bar
+        }),
+        "aria-pressed": !!f.bar,
+        "aria-label": `Pin ${f.name} to resource bar`,
+        className: `self-start text-xs rounded-lg border px-2.5 py-1 ${f.bar ? "border-pri-500 bg-pri-500/15 text-pri-200" : "border-neutral-700 text-neutral-400"}`
+      }, f.bar ? "On resource bar" : "Show on resource bar"))));
     })), /*#__PURE__*/React.createElement("div", {
       className: "mt-3 flex gap-1.5"
     }, /*#__PURE__*/React.createElement(TextIn, {
@@ -5739,6 +5753,22 @@ const SheetApp = (() => {
         });
       }
     });
+    c.features.forEach(f => {
+      if (f.bar && num(f.max) > 0) {
+        const initials = (f.name || "?").split(/\s+/).filter(Boolean).map(w => w[0].toUpperCase()).join("").slice(0, 3);
+        items.push({
+          k: `f${f.id}`,
+          kind: "feature",
+          id: f.id,
+          label: initials,
+          total: num(f.max),
+          used: num(f.used),
+          color: COLOR_OPTS[f.color] || COLOR_OPTS.accent,
+          display: f.display || "auto",
+          name: f.name
+        });
+      }
+    });
     return items;
   }
   function ResourceStrip({
@@ -5767,6 +5797,13 @@ const SheetApp = (() => {
           }
         };
       }
+      if (it.kind === "feature") return {
+        ...x,
+        features: x.features.map(f => f.id === it.id ? {
+          ...f,
+          used: clamp(num(f.used) + dir, 0, num(f.max))
+        } : f)
+      };
       return {
         ...x,
         resources: x.resources.map(r => r.id === it.id ? {
@@ -5836,6 +5873,50 @@ const SheetApp = (() => {
     item,
     onClose
   }) {
+    const feat = item.kind === "feature" ? c.features.find(x => x.id === item.id) : null;
+    const updF = patch => set(x => ({
+      ...x,
+      features: x.features.map(q => q.id === item.id ? {
+        ...q,
+        ...patch
+      } : q)
+    }));
+    if (feat) {
+      return /*#__PURE__*/React.createElement(Modal, {
+        title: feat.name,
+        onClose: onClose
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-sm text-neutral-300"
+      }, "Feature uses (", num(feat.max) - num(feat.used), "/", num(feat.max), " left). Change the number of uses or recharge in Traits, under Features (edit mode)."), /*#__PURE__*/React.createElement("div", {
+        className: "mt-3 space-y-2"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-xs text-neutral-500"
+      }, "Color"), /*#__PURE__*/React.createElement(ColorPicker, {
+        value: feat.color || "accent",
+        onChange: v => updF({
+          color: v
+        }),
+        label: "Feature color"
+      }), /*#__PURE__*/React.createElement("p", {
+        className: "text-xs text-neutral-500 pt-1"
+      }, "Show as"), /*#__PURE__*/React.createElement(DisplayToggle, {
+        value: feat.display || "auto",
+        onChange: v => updF({
+          display: v
+        })
+      })), /*#__PURE__*/React.createElement("button", {
+        onClick: () => {
+          updF({
+            bar: false
+          });
+          onClose();
+        },
+        className: `${btnDanger} w-full mt-4`
+      }, "Remove from resource bar"), /*#__PURE__*/React.createElement("button", {
+        onClick: onClose,
+        className: `${btnGhost} w-full mt-2`
+      }, "Done"));
+    }
     const r = item.kind === "custom" ? c.resources.find(x => x.id === item.id) : null;
     const upd = patch => set(x => ({
       ...x,
@@ -5977,6 +6058,17 @@ const SheetApp = (() => {
       }));
       onClose();
     };
+    const pinnable = c.features.filter(f => num(f.max) > 0 && !f.bar);
+    const pin = id => {
+      set(x => ({
+        ...x,
+        features: x.features.map(f => f.id === id ? {
+          ...f,
+          bar: true
+        } : f)
+      }));
+      onClose();
+    };
     const hasSlotData = [1, 2, 3, 4, 5, 6, 7, 8, 9].some(l => num(c.slots[l].max) > 0);
     return /*#__PURE__*/React.createElement(Modal, {
       title: "Add Resource",
@@ -6014,7 +6106,22 @@ const SheetApp = (() => {
     }), /*#__PURE__*/React.createElement("button", {
       onClick: add,
       className: `${btnPrimary} w-full`
-    }, "Add"), c.slotsHidden && hasSlotData && /*#__PURE__*/React.createElement("button", {
+    }, "Add"), /*#__PURE__*/React.createElement("div", {
+      className: "border-t border-neutral-800 pt-2"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-xs font-semibold text-neutral-400 mb-1.5"
+    }, "From your features"), pinnable.length === 0 ? /*#__PURE__*/React.createElement("p", {
+      className: "text-xs text-neutral-600"
+    }, "No features with uses to add. Give a feature uses under Traits, in Features (edit mode).") : /*#__PURE__*/React.createElement("div", {
+      className: "flex flex-wrap gap-1.5"
+    }, pinnable.map(f => /*#__PURE__*/React.createElement("button", {
+      key: f.id,
+      onClick: () => pin(f.id),
+      "aria-label": `Add ${f.name} to resource bar`,
+      className: "text-xs rounded-full border border-pri-700/60 bg-neutral-900 hover:bg-neutral-800 px-2.5 py-1 text-neutral-200"
+    }, "+ ", f.name, " ", /*#__PURE__*/React.createElement("span", {
+      className: "text-neutral-500"
+    }, num(f.max)))))), c.slotsHidden && hasSlotData && /*#__PURE__*/React.createElement("button", {
       onClick: () => {
         set(x => ({
           ...x,
