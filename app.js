@@ -3755,6 +3755,7 @@ const SheetApp = (() => {
       attacks: [],
       resources: [],
       slotsHidden: false,
+      panelOrder: {},
       spellAbility: "",
       slots,
       spells: [],
@@ -4406,6 +4407,69 @@ const SheetApp = (() => {
       };
     })
   });
+
+  // Panels can be reordered in edit mode. Order is stored per tab on the character (c.panelOrder).
+  function Panel({
+    children
+  }) {
+    return children;
+  }
+  function PanelStack({
+    tab,
+    c,
+    set,
+    children
+  }) {
+    const {
+      edit
+    } = useContext(Ctx);
+    const kids = React.Children.toArray(children).filter(k => k && k.props && k.props.pid);
+    const ids = kids.map(k => k.props.pid);
+    const saved = c.panelOrder && c.panelOrder[tab] || [];
+    const order = [...saved.filter(id => ids.includes(id)), ...ids.filter(id => !saved.includes(id))];
+    const move = (id, dir) => set(x => {
+      const o = [...order];
+      const i = o.indexOf(id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= o.length) return x;
+      [o[i], o[j]] = [o[j], o[i]];
+      return {
+        ...x,
+        panelOrder: {
+          ...(x.panelOrder || {}),
+          [tab]: o
+        }
+      };
+    });
+    return /*#__PURE__*/React.createElement("div", {
+      className: "space-y-3"
+    }, order.map((id, i) => {
+      const k = kids.find(q => q.props.pid === id);
+      return /*#__PURE__*/React.createElement("div", {
+        key: id
+      }, edit && /*#__PURE__*/React.createElement("div", {
+        className: "flex items-center justify-between rounded-t-lg bg-pri-500/10 border border-pri-700/40 border-b-0 px-2 py-0.5 -mb-px"
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "text-[10px] font-bold uppercase tracking-wider text-pri-300"
+      }, k.props.label), /*#__PURE__*/React.createElement("span", {
+        className: "flex items-center gap-1"
+      }, /*#__PURE__*/React.createElement("button", {
+        onClick: () => move(id, -1),
+        disabled: i === 0,
+        "aria-label": `Move ${k.props.label} panel up`,
+        className: "p-1 text-pri-200 disabled:opacity-25"
+      }, /*#__PURE__*/React.createElement(IconChevU, {
+        className: "w-4 h-4"
+      })), /*#__PURE__*/React.createElement("button", {
+        onClick: () => move(id, 1),
+        disabled: i === order.length - 1,
+        "aria-label": `Move ${k.props.label} panel down`,
+        className: "p-1 text-pri-200 disabled:opacity-25"
+      }, /*#__PURE__*/React.createElement(IconChevD, {
+        className: "w-4 h-4"
+      })))), k);
+    }));
+  }
   function ProfDot({
     level
   }) {
@@ -4773,8 +4837,13 @@ const SheetApp = (() => {
       ...x,
       ...patch
     }));
-    return /*#__PURE__*/React.createElement("div", {
-      className: "space-y-3"
+    return /*#__PURE__*/React.createElement(PanelStack, {
+      tab: "stats",
+      c: c,
+      set: set
+    }, /*#__PURE__*/React.createElement(Panel, {
+      pid: "overview",
+      label: "Overview"
     }, /*#__PURE__*/React.createElement(Card, {
       title: "Overview",
       icon: /*#__PURE__*/React.createElement(IconShield, {
@@ -4867,7 +4936,10 @@ const SheetApp = (() => {
       disabled: d.hitDiceLeft === 0
     }, d.hitDiceLeft, /*#__PURE__*/React.createElement("span", {
       className: "text-xs text-neutral-500"
-    }, "/", num(c.level)))))), /*#__PURE__*/React.createElement(Card, {
+    }, "/", num(c.level))))))), /*#__PURE__*/React.createElement(Panel, {
+      pid: "abilities",
+      label: "Ability Scores"
+    }, /*#__PURE__*/React.createElement(Card, {
       title: "Ability Scores & Saves",
       icon: /*#__PURE__*/React.createElement(IconCrown, {
         className: "w-3.5 h-3.5"
@@ -4917,13 +4989,19 @@ const SheetApp = (() => {
       className: "text-neutral-400"
     }, "Save"), /*#__PURE__*/React.createElement("span", {
       className: "font-bold tabular-nums text-pri-200"
-    }, fmt(d.save(k)))))))), /*#__PURE__*/React.createElement(SkillsCard, {
+    }, fmt(d.save(k))))))))), /*#__PURE__*/React.createElement(Panel, {
+      pid: "skills",
+      label: "Skills"
+    }, /*#__PURE__*/React.createElement(SkillsCard, {
       c: c,
       set: set
-    }), /*#__PURE__*/React.createElement(FeaturesTab, {
+    })), /*#__PURE__*/React.createElement(Panel, {
+      pid: "features",
+      label: "Features"
+    }, /*#__PURE__*/React.createElement(FeaturesTab, {
       c: c,
       set: set
-    }));
+    })));
   }
 
   // ───────────────────────── ACTIONS ─────────────────────────
@@ -4932,12 +5010,20 @@ const SheetApp = (() => {
     set
   }) {
     const [showCommon, setShowCommon] = useState(false);
-    return /*#__PURE__*/React.createElement("div", {
-      className: "space-y-3"
+    return /*#__PURE__*/React.createElement(PanelStack, {
+      tab: "actions",
+      c: c,
+      set: set
+    }, /*#__PURE__*/React.createElement(Panel, {
+      pid: "attacks",
+      label: "Attacks"
     }, /*#__PURE__*/React.createElement(AttacksCard, {
       c: c,
       set: set
-    }), /*#__PURE__*/React.createElement(Card, {
+    })), /*#__PURE__*/React.createElement(Panel, {
+      pid: "common",
+      label: "Common Actions"
+    }, /*#__PURE__*/React.createElement(Card, {
       title: "Common Actions",
       icon: /*#__PURE__*/React.createElement(IconScroll, {
         className: "w-3.5 h-3.5"
@@ -4962,7 +5048,7 @@ const SheetApp = (() => {
       className: "inline text-xs text-neutral-400"
     }, t)))) : /*#__PURE__*/React.createElement("p", {
       className: "text-xs text-neutral-500"
-    }, "Attack, Dash, Disengage, Dodge, Help, Hide, Ready, Search, Use an Object…")));
+    }, "Attack, Dash, Disengage, Dodge, Help, Hide, Ready, Search, Use an Object…"))));
   }
 
   // ───────────────────────── SPELLS ─────────────────────────
@@ -4974,6 +5060,33 @@ const SheetApp = (() => {
     onToggle,
     edit
   }) {
+    // Reorder within the same spell level: swap with the nearest neighbor of that level.
+    const sameLevelNeighbor = dir => {
+      const arr = c.spells;
+      const i = arr.findIndex(v => v.id === s.id);
+      for (let k = i + dir; k >= 0 && k < arr.length; k += dir) {
+        if (arr[k].level === s.level) return k;
+      }
+      return -1;
+    };
+    const canMove = dir => sameLevelNeighbor(dir) >= 0;
+    const moveSpell = dir => set(x => {
+      const arr = [...x.spells];
+      const i = arr.findIndex(v => v.id === s.id);
+      let j = -1;
+      for (let k = i + dir; k >= 0 && k < arr.length; k += dir) {
+        if (arr[k].level === arr[i].level) {
+          j = k;
+          break;
+        }
+      }
+      if (j < 0) return x;
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      return {
+        ...x,
+        spells: arr
+      };
+    });
     const {
       toast
     } = useContext(Ctx);
@@ -5081,13 +5194,29 @@ const SheetApp = (() => {
       onChange: e => ops.upd(s.id, {
         ritual: e.target.checked
       })
-    }), "Ritual"), /*#__PURE__*/React.createElement("button", {
+    }), "Ritual"), /*#__PURE__*/React.createElement("span", {
+      className: "ml-auto flex items-center gap-2"
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => moveSpell(-1),
+      disabled: !canMove(-1),
+      "aria-label": "Move spell up",
+      className: "text-neutral-500 disabled:opacity-20"
+    }, /*#__PURE__*/React.createElement(IconChevU, {
+      className: "w-4 h-4"
+    })), /*#__PURE__*/React.createElement("button", {
+      onClick: () => moveSpell(1),
+      disabled: !canMove(1),
+      "aria-label": "Move spell down",
+      className: "text-neutral-500 disabled:opacity-20"
+    }, /*#__PURE__*/React.createElement(IconChevD, {
+      className: "w-4 h-4"
+    })), /*#__PURE__*/React.createElement("button", {
       onClick: () => ops.del(s.id),
       "aria-label": "Delete spell",
-      className: "ml-auto text-neutral-600 hover:text-rose-300"
+      className: "text-neutral-600 hover:text-rose-300"
     }, /*#__PURE__*/React.createElement(IconTrash, {
       className: "w-4 h-4"
-    })))) : s.notes ? /*#__PURE__*/React.createElement("p", {
+    }))))) : s.notes ? /*#__PURE__*/React.createElement("p", {
       className: "text-xs text-neutral-400 whitespace-pre-wrap"
     }, s.notes) : /*#__PURE__*/React.createElement("p", {
       className: "text-xs text-neutral-600"
@@ -5168,8 +5297,13 @@ const SheetApp = (() => {
         level: draft.level
       });
     };
-    return /*#__PURE__*/React.createElement("div", {
-      className: "space-y-3"
+    return /*#__PURE__*/React.createElement(PanelStack, {
+      tab: "spells",
+      c: c,
+      set: set
+    }, /*#__PURE__*/React.createElement(Panel, {
+      pid: "casting",
+      label: "Spellcasting"
     }, /*#__PURE__*/React.createElement(Card, {
       title: "Spellcasting",
       icon: /*#__PURE__*/React.createElement(IconSparkles, {
@@ -5206,7 +5340,10 @@ const SheetApp = (() => {
         className: "w-5 h-5"
       }),
       label: "Spell Attack"
-    }, c.spellAbility ? fmt(d.spellAtk) : "—"))), /*#__PURE__*/React.createElement(Card, {
+    }, c.spellAbility ? fmt(d.spellAtk) : "—")))), /*#__PURE__*/React.createElement(Panel, {
+      pid: "slots",
+      label: "Spell Slots"
+    }, /*#__PURE__*/React.createElement(Card, {
       title: "Spell Slots",
       icon: /*#__PURE__*/React.createElement(IconFlame, {
         className: "w-3.5 h-3.5"
@@ -5242,7 +5379,10 @@ const SheetApp = (() => {
       className: "text-xs tabular-nums text-neutral-500"
     }, num(c.slots[l].max) - num(c.slots[l].used), "/", num(c.slots[l].max)))), !edit && levels.slice(1).every(l => num(c.slots[l].max) === 0) && /*#__PURE__*/React.createElement("p", {
       className: "text-xs text-neutral-500"
-    }, "No spell slots. Use edit mode to set them up."))), /*#__PURE__*/React.createElement(Card, {
+    }, "No spell slots. Use edit mode to set them up.")))), /*#__PURE__*/React.createElement(Panel, {
+      pid: "spells",
+      label: "Spells"
+    }, /*#__PURE__*/React.createElement(Card, {
       title: `Spells${preparedCount ? ` · ${preparedCount} prepared` : ""}`,
       icon: /*#__PURE__*/React.createElement(IconBook, {
         className: "w-3.5 h-3.5"
@@ -5298,7 +5438,7 @@ const SheetApp = (() => {
       className: `${btnPrimary} !px-3`
     }, /*#__PURE__*/React.createElement(IconPlus, {
       className: "w-4 h-4"
-    })))));
+    }))))));
   }
 
   // ───────────────────────── FEATURES ─────────────────────────
@@ -5533,8 +5673,13 @@ const SheetApp = (() => {
       setDraft("");
     };
     const coinTotalGp = num(c.coins.cp) / 100 + num(c.coins.sp) / 10 + num(c.coins.ep) / 2 + num(c.coins.gp) + num(c.coins.pp) * 10;
-    return /*#__PURE__*/React.createElement("div", {
-      className: "space-y-3"
+    return /*#__PURE__*/React.createElement(PanelStack, {
+      tab: "gear",
+      c: c,
+      set: set
+    }, /*#__PURE__*/React.createElement(Panel, {
+      pid: "coins",
+      label: "Coins"
     }, /*#__PURE__*/React.createElement(Card, {
       title: "Coins",
       icon: /*#__PURE__*/React.createElement(IconStar, {
@@ -5561,7 +5706,10 @@ const SheetApp = (() => {
       })),
       max: 9999999,
       className: "w-full !px-0.5"
-    }))))), /*#__PURE__*/React.createElement(Card, {
+    })))))), /*#__PURE__*/React.createElement(Panel, {
+      pid: "inventory",
+      label: "Inventory"
+    }, /*#__PURE__*/React.createElement(Card, {
       title: "Inventory",
       icon: /*#__PURE__*/React.createElement(IconBag, {
         className: "w-3.5 h-3.5"
@@ -5654,7 +5802,7 @@ const SheetApp = (() => {
       className: `${btnPrimary} !px-3`
     }, /*#__PURE__*/React.createElement(IconPlus, {
       className: "w-4 h-4"
-    })))));
+    }))))));
   }
 
   // ───────────────────────── NOTES ─────────────────────────
@@ -5682,8 +5830,13 @@ const SheetApp = (() => {
       onChange: bio(k),
       rows: rows
     }));
-    return /*#__PURE__*/React.createElement("div", {
-      className: "space-y-3"
+    return /*#__PURE__*/React.createElement(PanelStack, {
+      tab: "notes",
+      c: c,
+      set: set
+    }, /*#__PURE__*/React.createElement(Panel, {
+      pid: "personality",
+      label: "Personality"
     }, /*#__PURE__*/React.createElement(Card, {
       title: "Personality",
       icon: /*#__PURE__*/React.createElement(IconUser, {
@@ -5691,19 +5844,25 @@ const SheetApp = (() => {
       })
     }, /*#__PURE__*/React.createElement("div", {
       className: "space-y-2"
-    }, field("traits", "Personality traits"), field("ideals", "Ideals"), field("bonds", "Bonds"), field("flaws", "Flaws"), field("appearance", "Appearance", 3))), /*#__PURE__*/React.createElement(Card, {
+    }, field("traits", "Personality traits"), field("ideals", "Ideals"), field("bonds", "Bonds"), field("flaws", "Flaws"), field("appearance", "Appearance", 3)))), /*#__PURE__*/React.createElement(Panel, {
+      pid: "proficiencies",
+      label: "Proficiencies & Languages"
+    }, /*#__PURE__*/React.createElement(Card, {
       title: "Proficiencies & Languages",
       icon: /*#__PURE__*/React.createElement(IconBook, {
         className: "w-3.5 h-3.5"
       })
     }, /*#__PURE__*/React.createElement("div", {
       className: "space-y-2"
-    }, field("armorProf", "Armor"), field("weaponProf", "Weapons"), field("toolProf", "Tools"), field("languages", "Languages"))), /*#__PURE__*/React.createElement(Card, {
+    }, field("armorProf", "Armor"), field("weaponProf", "Weapons"), field("toolProf", "Tools"), field("languages", "Languages")))), /*#__PURE__*/React.createElement(Panel, {
+      pid: "notes",
+      label: "Notes"
+    }, /*#__PURE__*/React.createElement(Card, {
       title: "Notes",
       icon: /*#__PURE__*/React.createElement(IconScroll, {
         className: "w-3.5 h-3.5"
       })
-    }, field("notes", "Campaign notes", 8)));
+    }, field("notes", "Campaign notes", 8))));
   }
   const romanOf = n => ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"][n];
   function MiniDots({
@@ -6181,6 +6340,7 @@ const SheetApp = (() => {
     ["conditions", "attacks", "spells", "features", "items", "resources"].forEach(k => {
       if (!Array.isArray(c[k])) c[k] = [];
     });
+    c.panelOrder = raw.panelOrder && typeof raw.panelOrder === "object" ? raw.panelOrder : {};
     c.resources = c.resources.filter(r => r && r.kind !== "slots"); // slots now live in the bottom bar automatically
     return c;
   }
