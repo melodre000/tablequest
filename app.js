@@ -4535,24 +4535,25 @@ const SheetApp = (() => {
         ...x,
         hp: {
           ...x.hp,
-          max: v,
-          cur: Math.min(num(x.hp.cur), num(v))
+          max: v
         }
       })),
       className: "w-full"
-    })), /*#__PURE__*/React.createElement("div", {
+    })), /*#__PURE__*/React.createElement("label", {
       className: "flex items-center gap-1.5"
     }, /*#__PURE__*/React.createElement("span", {
       className: "text-xs text-neutral-500 shrink-0"
-    }, "Hit die d"), /*#__PURE__*/React.createElement(NumIn, {
-      value: c.hitDie,
-      onChange: v => up({
-        hitDie: v
+    }, "Hit die"), /*#__PURE__*/React.createElement("select", {
+      value: num(c.hitDie) || 8,
+      onChange: e => up({
+        hitDie: Number(e.target.value)
       }),
-      min: 4,
-      max: 12,
-      className: "w-full"
-    })), /*#__PURE__*/React.createElement("button", {
+      "aria-label": "Hit die",
+      className: `${inputCls} w-full`
+    }, [...new Set([4, 6, 8, 10, 12, num(c.hitDie) || 8])].sort((a, b) => a - b).map(d => /*#__PURE__*/React.createElement("option", {
+      key: d,
+      value: d
+    }, "d", d)))), /*#__PURE__*/React.createElement("button", {
       onClick: pickPortrait,
       className: "col-span-2 flex items-center justify-center gap-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-sm font-semibold py-2 text-neutral-200"
     }, /*#__PURE__*/React.createElement(IconCamera, {
@@ -7036,7 +7037,16 @@ const SheetApp = (() => {
     }, /*#__PURE__*/React.createElement(IconSliders, {
       className: "w-4 h-4"
     })), /*#__PURE__*/React.createElement("button", {
-      onClick: () => setEdit(v => !v),
+      onClick: () => {
+        if (edit) set(x => ({
+          ...x,
+          hp: {
+            ...x.hp,
+            cur: Math.min(num(x.hp.cur), num(x.hp.max))
+          }
+        }));
+        setEdit(v => !v);
+      },
       "aria-pressed": edit,
       "aria-label": "Edit mode",
       title: "Edit mode",
@@ -7045,7 +7055,37 @@ const SheetApp = (() => {
       className: "w-4 h-4"
     }))), /*#__PURE__*/React.createElement("div", {
       className: "mt-2 flex items-center gap-2"
-    }, /*#__PURE__*/React.createElement("button", {
+    }, edit ? /*#__PURE__*/React.createElement("div", {
+      className: "flex-1 h-8 rounded-lg border border-pri-500 bg-neutral-900 flex items-center gap-1 px-1.5 min-w-0",
+      role: "group",
+      "aria-label": "Edit hit points"
+    }, /*#__PURE__*/React.createElement(IconHeart, {
+      className: "w-4 h-4 text-rose-300 shrink-0"
+    }), /*#__PURE__*/React.createElement(NumIn, {
+      value: c.hp.cur,
+      onChange: v => set(x => ({
+        ...x,
+        hp: {
+          ...x.hp,
+          cur: v === "" ? "" : Math.min(v, num(x.hp.max))
+        }
+      })),
+      className: "w-14 !px-1 !py-0.5",
+      label: "Current hit points"
+    }), /*#__PURE__*/React.createElement("span", {
+      className: "text-neutral-500 text-sm"
+    }, "/"), /*#__PURE__*/React.createElement(NumIn, {
+      value: c.hp.max,
+      onChange: v => set(x => ({
+        ...x,
+        hp: {
+          ...x.hp,
+          max: v
+        }
+      })),
+      className: "w-14 !px-1 !py-0.5",
+      label: "Maximum hit points"
+    })) : /*#__PURE__*/React.createElement("button", {
       onClick: () => setModal("hp"),
       "aria-label": "Hit points",
       className: "flex-1 relative h-8 rounded-lg border border-rose-900/80 bg-neutral-900 overflow-hidden text-left"
