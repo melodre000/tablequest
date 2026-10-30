@@ -4265,6 +4265,7 @@ const SheetApp = (() => {
     emerald: "bg-emerald-400 border-emerald-300",
     rose: "bg-rose-400 border-rose-300",
     violet: "bg-violet-400 border-violet-300",
+    purple: "bg-[#9b27d4] border-[#c084fc]",
     orange: "bg-orange-400 border-orange-300",
     teal: "bg-teal-400 border-teal-300",
     white: "bg-neutral-200 border-neutral-100"
@@ -4275,6 +4276,7 @@ const SheetApp = (() => {
     emerald: "#34d399",
     rose: "#fb7185",
     violet: "#a78bfa",
+    purple: "#9b27d4",
     orange: "#fb923c",
     teal: "#2dd4bf",
     white: "#e5e5e5"
