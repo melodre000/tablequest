@@ -6539,7 +6539,6 @@ const SheetApp = (() => {
       value: amt,
       onChange: e => setAmt(e.target.value),
       placeholder: "Amount",
-      autoFocus: true,
       "aria-label": "Amount",
       className: `${inputCls} flex-1 text-center text-lg py-2`
     })), /*#__PURE__*/React.createElement("div", {
@@ -7060,6 +7059,7 @@ const SheetApp = (() => {
       pickPortrait
     } = useContext(Ctx);
     const swipeOn = settings.swipe !== false;
+    const panelsOn = settings.landscapePanels !== false;
     const accent = settings.accent || "amber";
     return /*#__PURE__*/React.createElement("div", {
       className: "space-y-3"
@@ -7105,6 +7105,22 @@ const SheetApp = (() => {
       className: `shrink-0 w-12 h-7 rounded-full border-2 transition-colors relative ${swipeOn ? "bg-pri-500 border-pri-400" : "bg-neutral-800 border-neutral-600"}`
     }, /*#__PURE__*/React.createElement("span", {
       className: `absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${swipeOn ? "left-[1.35rem]" : "left-0.5"}`
+    }))), /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between gap-3 mt-3 pt-3 border-t border-neutral-800"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "min-w-0"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-sm font-semibold"
+    }, "Show all panels in landscape"), /*#__PURE__*/React.createElement("p", {
+      className: "text-xs text-neutral-500"
+    }, "On wide screens, show Actions, Traits and Spells side by side. Off keeps the single-tab layout.")), /*#__PURE__*/React.createElement("button", {
+      role: "switch",
+      "aria-checked": panelsOn,
+      "aria-label": "Show all panels in landscape",
+      onClick: () => setSetting("landscapePanels", !panelsOn),
+      className: `shrink-0 w-12 h-7 rounded-full border-2 transition-colors relative ${panelsOn ? "bg-pri-500 border-pri-400" : "bg-neutral-800 border-neutral-600"}`
+    }, /*#__PURE__*/React.createElement("span", {
+      className: `absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${panelsOn ? "left-[1.35rem]" : "left-0.5"}`
     })))), /*#__PURE__*/React.createElement(Card, {
       title: "Profile picture",
       icon: /*#__PURE__*/React.createElement(IconCamera, {
@@ -7380,7 +7396,8 @@ const SheetApp = (() => {
       }
     }));
     // Landscape tablets get three panes (Actions | Traits | Spells); portrait tablets keep the phone layout, just wider.
-    const wide = useMedia("(min-width: 900px) and (min-height: 560px) and (orientation: landscape)");
+    const wideScreen = useMedia("(min-width: 900px) and (min-height: 560px) and (orientation: landscape)");
+    const wide = wideScreen && store.settings.landscapePanels !== false;
     const tablet = useMedia("(min-width: 640px)");
     const maxW = wide ? "max-w-none" : tablet ? "max-w-3xl" : "max-w-md";
     const d = derive(c);

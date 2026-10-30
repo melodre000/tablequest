@@ -1,4 +1,4 @@
-const CACHE_NAME = "tablequest-v10-clean";
+const CACHE_NAME = "tablequest-v11-clean";
 const ASSETS = [
   "./",
   "./index.html",
