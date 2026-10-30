@@ -3756,6 +3756,7 @@ const SheetApp = (() => {
       resources: [],
       slotsHidden: false,
       panelOrder: {},
+      needsSetup: false,
       spellAbility: "",
       slots,
       spells: [],
@@ -4100,6 +4101,7 @@ const SheetApp = (() => {
       if (raw && raw.chars && raw.order && raw.order.length) return raw;
     } catch (e) {/* ignore */}
     const s = newChar("New Character");
+    s.needsSetup = true;
     return {
       chars: {
         [s.id]: s
@@ -4142,6 +4144,7 @@ const SheetApp = (() => {
   const IconBook = mkIcon("M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5|M9 7h6");
   const IconSparkles = mkIcon("M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z|M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z");
   const IconSliders = mkIcon("M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6");
+  const IconUndo = mkIcon("M9 14L4 9l5-5|M4 9h10a6 6 0 0 1 0 12h-3");
   const IconBag = mkIcon("M6 8h12l1 13H5z|M9 8V6a3 3 0 0 1 6 0v2");
   const IconScroll = mkIcon("M7 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z|M8 9h8M8 13h8");
   const IconCrown = mkIcon("M3 8l4 4 5-7 5 7 4-4v11H3z");
@@ -4377,13 +4380,13 @@ const SheetApp = (() => {
 
   // Generic edit helpers for list-valued fields (attacks, spells, features, items).
   const listOps = (set, field) => ({
-    upd: (id, patch) => set(x => ({
+    upd: (id, patch, label) => set(x => ({
       ...x,
       [field]: x[field].map(i => i.id === id ? {
         ...i,
         ...patch
       } : i)
-    })),
+    }), label),
     del: id => set(x => ({
       ...x,
       [field]: x[field].filter(i => i.id !== id)
@@ -4738,22 +4741,30 @@ const SheetApp = (() => {
         type: v
       }),
       placeholder: "Type"
-    })), /*#__PURE__*/React.createElement(TextIn, {
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "grid grid-cols-3 gap-1.5"
+    }, /*#__PURE__*/React.createElement(TextIn, {
+      value: a.range || "",
+      onChange: v => ops.upd(a.id, {
+        range: v
+      }),
+      placeholder: "Range (60 ft)"
+    }), /*#__PURE__*/React.createElement(TextIn, {
       value: a.notes,
       onChange: v => ops.upd(a.id, {
         notes: v
       }),
-      placeholder: "Notes (range, properties)",
-      className: "w-full"
-    })) : /*#__PURE__*/React.createElement("div", {
+      placeholder: "Notes (properties)",
+      className: "col-span-2"
+    }))) : /*#__PURE__*/React.createElement("div", {
       className: "flex items-center gap-2"
     }, /*#__PURE__*/React.createElement("div", {
       className: "flex-1 min-w-0"
     }, /*#__PURE__*/React.createElement("p", {
       className: "font-semibold text-sm truncate"
-    }, a.name), a.notes && /*#__PURE__*/React.createElement("p", {
+    }, a.name), (a.range || a.notes) && /*#__PURE__*/React.createElement("p", {
       className: "text-xs text-neutral-500 truncate"
-    }, a.notes)), /*#__PURE__*/React.createElement("button", {
+    }, [a.range, a.notes].filter(Boolean).join(" · "))), /*#__PURE__*/React.createElement("button", {
       onClick: () => rollD20(`${a.name} attack`, num(a.bonus)),
       "aria-label": `Roll ${a.name} attack`,
       className: "rounded-lg border border-pri-700 bg-pri-900/20 px-2.5 py-1.5 text-sm font-bold text-pri-200 tabular-nums hover:bg-pri-900/40"
@@ -4911,9 +4922,10 @@ const SheetApp = (() => {
     }, fmt(d.pb))), /*#__PURE__*/React.createElement("div", {
       className: "grid grid-cols-3 gap-2"
     }, /*#__PURE__*/React.createElement("button", {
-      onClick: () => up({
-        inspiration: !c.inspiration
-      }),
+      onClick: () => set(x => ({
+        ...x,
+        inspiration: !x.inspiration
+      }), "Inspiration"),
       "aria-pressed": c.inspiration,
       className: `flex flex-col items-center justify-center gap-0.5 rounded-xl border px-1 py-2 min-h-[4.5rem] ${c.inspiration ? "border-pri-400 bg-pri-500/15 text-pri-200" : "border-neutral-700/80 bg-neutral-950/60 text-neutral-500"}`
     }, /*#__PURE__*/React.createElement(IconSparkles, {
@@ -5118,11 +5130,11 @@ const SheetApp = (() => {
             used: num(x.slots[lvl].used) + 1
           }
         }
-      }));
+      }), `Cast ${s.name}`);
       toast(`Cast ${s.name} (level ${lvl})`);
     };
     const ritual = () => {
-      set(x => concentrate(x));
+      set(x => concentrate(x), `Ritual ${s.name}`);
       toast(`Ritual cast ${s.name}`);
     };
     return /*#__PURE__*/React.createElement("div", {
@@ -5135,8 +5147,12 @@ const SheetApp = (() => {
       className: `w-2 h-2 rounded-full shrink-0 ${s.prepared ? "bg-pri-400" : "bg-neutral-700"}`,
       title: s.prepared ? "Prepared" : "Not prepared"
     }), /*#__PURE__*/React.createElement("span", {
-      className: "flex-1 text-sm font-semibold truncate"
-    }, s.name), s.conc && /*#__PURE__*/React.createElement("span", {
+      className: "flex-1 min-w-0"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "block text-sm font-semibold truncate"
+    }, s.name), (s.castTime || s.range) && /*#__PURE__*/React.createElement("span", {
+      className: "block text-[11px] text-neutral-500 truncate"
+    }, [s.castTime, s.range].filter(Boolean).join(" · "))), s.conc && /*#__PURE__*/React.createElement("span", {
       className: "text-[10px] rounded border border-yellow-700 text-yellow-300 px-1"
     }, "C"), s.ritual && /*#__PURE__*/React.createElement("span", {
       className: "text-[10px] rounded border border-sky-700 text-sky-300 px-1"
@@ -5169,12 +5185,26 @@ const SheetApp = (() => {
     }, "Cantrip"), [1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => /*#__PURE__*/React.createElement("option", {
       key: l,
       value: l
-    }, "Level ", l)))), /*#__PURE__*/React.createElement(TextArea, {
+    }, "Level ", l)))), /*#__PURE__*/React.createElement("div", {
+      className: "grid grid-cols-2 gap-1.5"
+    }, /*#__PURE__*/React.createElement(TextIn, {
+      value: s.castTime || "",
+      onChange: v => ops.upd(s.id, {
+        castTime: v
+      }),
+      placeholder: "Casting time (1 action)"
+    }), /*#__PURE__*/React.createElement(TextIn, {
+      value: s.range || "",
+      onChange: v => ops.upd(s.id, {
+        range: v
+      }),
+      placeholder: "Range (120 ft)"
+    })), /*#__PURE__*/React.createElement(TextArea, {
       value: s.notes,
       onChange: v => ops.upd(s.id, {
         notes: v
       }),
-      placeholder: "Range, components, damage, effect…",
+      placeholder: "Components, damage, effect…",
       rows: 3
     }), /*#__PURE__*/React.createElement("div", {
       className: "flex items-center gap-3 text-xs text-neutral-300"
@@ -5273,7 +5303,7 @@ const SheetApp = (() => {
           ...patch
         }
       }
-    }));
+    }), "used" in patch && !("max" in patch) ? "Spell slot" : undefined);
     const levels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     const preparedCount = c.spells.filter(s => s.level > 0 && s.prepared).length;
     const addSpell = () => {
@@ -5516,7 +5546,7 @@ const SheetApp = (() => {
         used: num(f.used),
         onChange: u => ops.upd(f.id, {
           used: u
-        }),
+        }, f.name),
         color: f.color || "accent",
         label: `${f.name} use`
       }), /*#__PURE__*/React.createElement("button", {
@@ -5583,7 +5613,17 @@ const SheetApp = (() => {
         "aria-pressed": !!f.bar,
         "aria-label": `Pin ${f.name} to resource bar`,
         className: `self-start text-xs rounded-lg border px-2.5 py-1 ${f.bar ? "border-pri-500 bg-pri-500/15 text-pri-200" : "border-neutral-700 text-neutral-400"}`
-      }, f.bar ? "On resource bar" : "Show on resource bar"), /*#__PURE__*/React.createElement("div", {
+      }, f.bar ? "On resource bar" : "Show on resource bar"), num(f.max) > 0 && /*#__PURE__*/React.createElement("div", {
+        className: "space-y-1"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-[11px] text-neutral-500"
+      }, "Pip color"), /*#__PURE__*/React.createElement(ColorPicker, {
+        value: f.color || "accent",
+        onChange: v => ops.upd(f.id, {
+          color: v
+        }),
+        label: `${f.name} pip color`
+      })), /*#__PURE__*/React.createElement("div", {
         className: "flex justify-end gap-2"
       }, /*#__PURE__*/React.createElement("button", {
         onClick: () => ops.move(f.id, -1),
@@ -5618,7 +5658,17 @@ const SheetApp = (() => {
         "aria-pressed": !!f.bar,
         "aria-label": `Pin ${f.name} to resource bar`,
         className: `self-start text-xs rounded-lg border px-2.5 py-1 ${f.bar ? "border-pri-500 bg-pri-500/15 text-pri-200" : "border-neutral-700 text-neutral-400"}`
-      }, f.bar ? "On resource bar" : "Show on resource bar"))));
+      }, f.bar ? "On resource bar" : "Show on resource bar"), num(f.max) > 0 && /*#__PURE__*/React.createElement("div", {
+        className: "space-y-1"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-[11px] text-neutral-500"
+      }, "Pip color"), /*#__PURE__*/React.createElement(ColorPicker, {
+        value: f.color || "accent",
+        onChange: v => ops.upd(f.id, {
+          color: v
+        }),
+        label: `${f.name} pip color`
+      })))));
     })), /*#__PURE__*/React.createElement("div", {
       className: "mt-3 flex gap-1.5"
     }, /*#__PURE__*/React.createElement(TextIn, {
@@ -5970,7 +6020,7 @@ const SheetApp = (() => {
           used: clamp(num(r.used) + dir, 0, num(r.max))
         } : r)
       };
-    });
+    }, it.name);
     const down = it => {
       held.current = false;
       clearTimeout(timer.current);
@@ -6403,9 +6453,9 @@ const SheetApp = (() => {
   }) {
     const [amt, setAmt] = useState("");
     const n = num(amt);
-    const apply = (fn, msg) => {
+    const apply = (fn, msg, label) => {
       if (n <= 0) return;
-      set(x => fn(x, n));
+      set(x => fn(x, n), label);
       toast(msg(n));
       onClose();
     };
@@ -6416,7 +6466,7 @@ const SheetApp = (() => {
         ...x.deathSaves,
         ...patch
       }
-    }));
+    }), "Death saves");
     const deathSave = () => {
       const r = rnd(20);
       let note;
@@ -6431,7 +6481,7 @@ const SheetApp = (() => {
             s: 0,
             f: 0
           }
-        }, 1));
+        }, 1), "Death save");
       } else {
         if (r === 1) {
           ds.f = Math.min(3, ds.f + 2);
@@ -6448,7 +6498,7 @@ const SheetApp = (() => {
         set(x => ({
           ...x,
           deathSaves: ds
-        }));
+        }), "Death save");
       }
       setResult({
         label: "Death saving throw",
@@ -6483,10 +6533,10 @@ const SheetApp = (() => {
     })), /*#__PURE__*/React.createElement("div", {
       className: "mt-2 grid grid-cols-3 gap-2"
     }, /*#__PURE__*/React.createElement("button", {
-      onClick: () => apply(damageChar, v => `Took ${v} damage`),
+      onClick: () => apply(damageChar, v => `Took ${v} damage`, "Damage"),
       className: btnDanger
     }, "Damage"), /*#__PURE__*/React.createElement("button", {
-      onClick: () => apply(healChar, v => `Healed ${v}`),
+      onClick: () => apply(healChar, v => `Healed ${v}`, "Healing"),
       className: `${btnCls} bg-emerald-700 hover:bg-emerald-600 text-white`
     }, "Heal"), /*#__PURE__*/React.createElement("button", {
       onClick: () => {
@@ -6497,7 +6547,7 @@ const SheetApp = (() => {
               ...x.hp,
               temp: n
             }
-          }));
+          }), "Temp HP");
           toast(`Temp HP set to ${n}`);
           onClose();
         }
@@ -6564,7 +6614,7 @@ const SheetApp = (() => {
           ...r,
           used: 0
         } : r)
-      }));
+      }), "Short rest");
       toast("Short rest finished");
       onClose();
     };
@@ -6605,7 +6655,7 @@ const SheetApp = (() => {
             moved: 0
           }
         };
-      });
+      }, "Long rest");
       toast("Long rest complete");
       onClose();
     };
@@ -6654,7 +6704,7 @@ const SheetApp = (() => {
     const toggle = n => set(x => ({
       ...x,
       conditions: x.conditions.includes(n) ? x.conditions.filter(v => v !== n) : [...x.conditions, n]
-    }));
+    }), "Conditions");
     return /*#__PURE__*/React.createElement(Modal, {
       title: "Conditions",
       onClose: onClose
@@ -6677,7 +6727,7 @@ const SheetApp = (() => {
       onChange: v => set(x => ({
         ...x,
         exhaustion: v
-      })),
+      }), "Exhaustion"),
       max: 6,
       label: "Exhaustion level"
     })), /*#__PURE__*/React.createElement("div", {
@@ -6688,7 +6738,7 @@ const SheetApp = (() => {
       onClick: () => set(x => ({
         ...x,
         concentrating: ""
-      })),
+      }), "Concentration"),
       className: `${btnGhost} w-full`
     }, "Stop concentrating", c.concentrating !== "Concentrating" ? ` on ${c.concentrating}` : "") : /*#__PURE__*/React.createElement("div", {
       className: "flex gap-1.5"
@@ -6702,7 +6752,7 @@ const SheetApp = (() => {
         set(x => ({
           ...x,
           concentrating: conc.trim() || "Concentrating"
-        }));
+        }), "Concentration");
         setConc("");
       },
       className: btnPrimary
@@ -6823,6 +6873,7 @@ const SheetApp = (() => {
     };
     const create = () => {
       const c = newChar("New Character");
+      c.needsSetup = true;
       setStore(s => ({
         ...s,
         chars: {
@@ -6873,6 +6924,7 @@ const SheetApp = (() => {
         let nextOrder = s.order.filter(v => v !== id);
         if (nextOrder.length === 0) {
           const c = newChar("New Character");
+          c.needsSetup = true;
           nextChars[c.id] = c;
           nextOrder = [c.id];
         }
@@ -7043,6 +7095,166 @@ const SheetApp = (() => {
       className: "text-[11px] text-neutral-500 mt-2"
     }, "Applies to ", c.name || "this character", ". It's cropped to a square and stored on this device.")));
   }
+  function CharacterSetup({
+    c,
+    set
+  }) {
+    const {
+      labels,
+      pickPortrait
+    } = useContext(Ctx);
+    const up = patch => set(x => ({
+      ...x,
+      ...patch
+    }));
+    const finish = () => set(x => ({
+      ...x,
+      needsSetup: false,
+      hp: {
+        ...x.hp,
+        cur: num(x.hp.max),
+        temp: 0
+      }
+    }));
+    const skip = () => set(x => ({
+      ...x,
+      needsSetup: false
+    }));
+    const lab = t => /*#__PURE__*/React.createElement("span", {
+      className: "text-[11px] font-bold uppercase tracking-wider text-neutral-500"
+    }, t);
+    return /*#__PURE__*/React.createElement("div", {
+      className: "max-w-md mx-auto px-4 py-6 safe-top"
+    }, /*#__PURE__*/React.createElement("h1", {
+      className: "font-serif text-2xl font-bold text-center text-pri-200"
+    }, "Create your character"), /*#__PURE__*/React.createElement("p", {
+      className: "text-center text-sm text-neutral-400 mt-1"
+    }, "Fill in the basics. You can change anything later in edit mode."), /*#__PURE__*/React.createElement("div", {
+      className: "flex justify-center mt-4"
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: pickPortrait,
+      "aria-label": "Add portrait",
+      className: "relative rounded-full"
+    }, /*#__PURE__*/React.createElement(Avatar, {
+      c: c,
+      size: "w-24 h-24"
+    }), /*#__PURE__*/React.createElement("span", {
+      className: "absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-pri-500 text-neutral-950 flex items-center justify-center border-2 border-neutral-950"
+    }, /*#__PURE__*/React.createElement(IconCamera, {
+      className: "w-4 h-4"
+    })))), /*#__PURE__*/React.createElement("div", {
+      className: "mt-5 space-y-3"
+    }, /*#__PURE__*/React.createElement("label", {
+      className: "block"
+    }, lab("Name"), /*#__PURE__*/React.createElement(TextIn, {
+      value: c.name === "New Character" ? "" : c.name,
+      onChange: v => up({
+        name: v
+      }),
+      placeholder: "Character name",
+      className: "w-full mt-1"
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "grid grid-cols-2 gap-2"
+    }, /*#__PURE__*/React.createElement("label", {
+      className: "block"
+    }, lab("Class"), /*#__PURE__*/React.createElement(TextIn, {
+      value: c.cls,
+      onChange: v => up({
+        cls: v
+      }),
+      placeholder: "Wizard",
+      className: "w-full mt-1"
+    })), /*#__PURE__*/React.createElement("label", {
+      className: "block"
+    }, lab("Subclass"), /*#__PURE__*/React.createElement(TextIn, {
+      value: c.subclass,
+      onChange: v => up({
+        subclass: v
+      }),
+      placeholder: "Optional",
+      className: "w-full mt-1"
+    })), /*#__PURE__*/React.createElement("label", {
+      className: "block"
+    }, lab("Level"), /*#__PURE__*/React.createElement(NumIn, {
+      value: c.level,
+      onChange: v => up({
+        level: v
+      }),
+      min: 1,
+      max: 20,
+      className: "w-full mt-1",
+      label: "Level"
+    })), /*#__PURE__*/React.createElement("label", {
+      className: "block"
+    }, lab(labels.species), /*#__PURE__*/React.createElement(TextIn, {
+      value: c.species,
+      onChange: v => up({
+        species: v
+      }),
+      placeholder: labels.species,
+      className: "w-full mt-1"
+    })), /*#__PURE__*/React.createElement("label", {
+      className: "block"
+    }, lab("Background"), /*#__PURE__*/React.createElement(TextIn, {
+      value: c.background,
+      onChange: v => up({
+        background: v
+      }),
+      placeholder: "Background",
+      className: "w-full mt-1"
+    })), /*#__PURE__*/React.createElement("label", {
+      className: "block"
+    }, lab("Alignment"), /*#__PURE__*/React.createElement(TextIn, {
+      value: c.alignment,
+      onChange: v => up({
+        alignment: v
+      }),
+      placeholder: "Alignment",
+      className: "w-full mt-1"
+    }))), /*#__PURE__*/React.createElement("div", {
+      className: "grid grid-cols-3 gap-2"
+    }, /*#__PURE__*/React.createElement("label", {
+      className: "block"
+    }, lab("Max HP"), /*#__PURE__*/React.createElement(NumIn, {
+      value: c.hp.max,
+      onChange: v => set(x => ({
+        ...x,
+        hp: {
+          ...x.hp,
+          max: v
+        }
+      })),
+      className: "w-full mt-1",
+      label: "Max HP"
+    })), /*#__PURE__*/React.createElement("label", {
+      className: "block"
+    }, lab("Armor class"), /*#__PURE__*/React.createElement(NumIn, {
+      value: c.ac,
+      onChange: v => up({
+        ac: v
+      }),
+      className: "w-full mt-1",
+      label: "Armor class"
+    })), /*#__PURE__*/React.createElement("label", {
+      className: "block"
+    }, lab("Hit die"), /*#__PURE__*/React.createElement("select", {
+      value: num(c.hitDie) || 8,
+      onChange: e => up({
+        hitDie: Number(e.target.value)
+      }),
+      "aria-label": "Hit die",
+      className: `${inputCls} w-full mt-1`
+    }, [4, 6, 8, 10, 12].map(d => /*#__PURE__*/React.createElement("option", {
+      key: d,
+      value: d
+    }, "d", d)))))), /*#__PURE__*/React.createElement("button", {
+      onClick: finish,
+      className: `${btnPrimary} w-full mt-6 py-3 text-base`
+    }, "Continue to sheet"), /*#__PURE__*/React.createElement("button", {
+      onClick: skip,
+      className: "w-full mt-2 text-xs text-neutral-500 hover:text-neutral-300 py-2"
+    }, "Skip for now"));
+  }
 
   // ───────────────────────── app ─────────────────────────
   const TABS = [["actions", "Actions", IconSword], ["stats", "Traits", IconUser], ["spells", "Spells", IconSparkles]];
@@ -7109,13 +7321,49 @@ const SheetApp = (() => {
       }
     }));
     const d = derive(c);
-    const set = fn => setStore(s => ({
-      ...s,
-      chars: {
-        ...s.chars,
-        [activeId]: fn(normalizeChar(s.chars[activeId]))
+    const storeRef = useRef(store);
+    storeRef.current = store;
+    const pushedThisTick = useRef(false);
+    const [undoStack, setUndoStack] = useState([]);
+    // Labeled changes (damage, rests, casting, spending uses…) can be undone. Several set() calls in one tap share one undo step.
+    const set = (fn, label) => {
+      if (label && !pushedThisTick.current) {
+        pushedThisTick.current = true;
+        Promise.resolve().then(() => {
+          pushedThisTick.current = false;
+        });
+        const snap = JSON.parse(JSON.stringify(normalizeChar(storeRef.current.chars[activeId])));
+        setUndoStack(st => [...st.slice(-39), {
+          id: activeId,
+          label,
+          snap
+        }]);
       }
-    }));
+      setStore(s => ({
+        ...s,
+        chars: {
+          ...s.chars,
+          [activeId]: fn(normalizeChar(s.chars[activeId]))
+        }
+      }));
+    };
+    const myUndo = undoStack.filter(e => e.id === activeId);
+    const topUndo = myUndo[myUndo.length - 1];
+    const undo = () => {
+      if (!topUndo || edit) return;
+      setUndoStack(st => {
+        const k = st.lastIndexOf(topUndo);
+        return k < 0 ? st : st.filter((_, i) => i !== k);
+      });
+      setStore(s => ({
+        ...s,
+        chars: {
+          ...s.chars,
+          [topUndo.id]: topUndo.snap
+        }
+      }));
+      toast(`Undid: ${topUndo.label}`);
+    };
     const toast = m => {
       setToastMsg(m);
       clearTimeout(toastTimer.current);
@@ -7159,7 +7407,7 @@ const SheetApp = (() => {
       set(x => ({
         ...healChar(x, heal),
         hitDiceUsed: num(x.hitDiceUsed) + 1
-      }));
+      }), "Hit die");
       setResult({
         label: `Hit die (d${die})`,
         total: heal,
@@ -7237,6 +7485,35 @@ const SheetApp = (() => {
       actions: ActionsTab,
       spells: SpellsTab
     }[tab];
+    const toastEl = toastMsg ? /*#__PURE__*/React.createElement("div", {
+      role: "status",
+      className: "fixed bottom-32 inset-x-0 z-50 flex justify-center pointer-events-none"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "rounded-full bg-neutral-100 text-neutral-900 text-sm font-semibold px-4 py-2 shadow-lg"
+    }, toastMsg)) : null;
+    const hiddenInputs = /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("input", {
+      ref: importRef,
+      type: "file",
+      accept: ".json,application/json",
+      onChange: onImport,
+      className: "hidden"
+    }), /*#__PURE__*/React.createElement("input", {
+      ref: portraitRef,
+      type: "file",
+      accept: "image/*",
+      onChange: onPortrait,
+      className: "hidden"
+    }));
+    if (c.needsSetup) {
+      return /*#__PURE__*/React.createElement(Ctx.Provider, {
+        value: ctx
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "min-h-screen bg-neutral-950 text-neutral-100"
+      }, /*#__PURE__*/React.createElement(CharacterSetup, {
+        c: c,
+        set: set
+      }), hiddenInputs, toastEl));
+    }
     return /*#__PURE__*/React.createElement(Ctx.Provider, {
       value: ctx
     }, /*#__PURE__*/React.createElement("div", {
@@ -7305,13 +7582,16 @@ const SheetApp = (() => {
       className: "w-4 h-4"
     })), /*#__PURE__*/React.createElement("button", {
       onClick: () => {
-        if (edit) set(x => ({
-          ...x,
-          hp: {
-            ...x.hp,
-            cur: Math.min(num(x.hp.cur), num(x.hp.max))
-          }
-        }));
+        if (edit) {
+          set(x => ({
+            ...x,
+            hp: {
+              ...x.hp,
+              cur: Math.min(num(x.hp.cur), num(x.hp.max))
+            }
+          }));
+          setUndoStack([]);
+        }
         setEdit(v => !v);
       },
       "aria-pressed": edit,
@@ -7373,7 +7653,15 @@ const SheetApp = (() => {
       className: "tabular-nums"
     }, num(c.hp.cur), " / ", num(c.hp.max), num(c.hp.temp) > 0 && /*#__PURE__*/React.createElement("span", {
       className: "text-sky-300 text-xs"
-    }, " +", num(c.hp.temp))))), edit ? /*#__PURE__*/React.createElement("label", {
+    }, " +", num(c.hp.temp))))), /*#__PURE__*/React.createElement("button", {
+      onClick: undo,
+      disabled: !topUndo || edit,
+      "aria-label": "Undo",
+      title: topUndo ? `Undo: ${topUndo.label}` : "Nothing to undo",
+      className: "h-8 w-8 shrink-0 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-200 flex items-center justify-center disabled:opacity-30 active:bg-neutral-800"
+    }, /*#__PURE__*/React.createElement(IconUndo, {
+      className: "w-4 h-4"
+    })), edit ? /*#__PURE__*/React.createElement("label", {
       className: "h-8 px-1.5 rounded-lg border border-pri-500 bg-neutral-900 flex items-center gap-1 text-sm font-bold",
       title: "Armor class"
     }, /*#__PURE__*/React.createElement(IconShield, {
