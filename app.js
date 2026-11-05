@@ -1367,11 +1367,18 @@ const LiteApp = (() => {
       value: it.name,
       onChange: e => updateListItem(field, i, "name", e.target.value),
       className: `w-[30%] shrink-0 min-w-0 ${inputCls}`
-    }), /*#__PURE__*/React.createElement("input", {
+    }), /*#__PURE__*/React.createElement("textarea", {
       placeholder: "Description",
+      rows: 1,
       value: it.desc,
+      ref: el => {
+        if (el) {
+          el.style.height = "auto";
+          el.style.height = el.scrollHeight + "px";
+        }
+      },
       onChange: e => updateListItem(field, i, "desc", e.target.value),
-      className: `flex-1 min-w-0 ${inputCls}`
+      className: `flex-1 min-w-0 resize-none overflow-hidden ${inputCls}`
     }), getList(field).length > 1 && /*#__PURE__*/React.createElement("button", {
       onClick: () => removeListItem(field, i),
       className: "text-neutral-600 hover:text-rose-300 px-1"
@@ -1406,7 +1413,7 @@ const LiteApp = (() => {
     const sections = [["Actions", keep(a.actions)], ["Bonus Actions", keep(a.bonusActions)], ["Reactions", keep(a.reactions)], ["Legendary Actions", keep(a.legendaryActions)], ["Lair Actions", keep(a.lairActions)]].filter(([, list]) => list.length > 0);
     const entry = (t, i) => /*#__PURE__*/React.createElement("p", {
       key: i,
-      className: "text-xs text-neutral-300"
+      className: "text-xs text-neutral-300 whitespace-pre-line"
     }, t.name && /*#__PURE__*/React.createElement("span", {
       className: "italic font-bold text-amber-200"
     }, t.name, "."), " ", t.desc);
@@ -3864,23 +3871,39 @@ const SheetApp = (() => {
       prepared: level === 0 ? true : !!o.prepared,
       conc: !!o.conc,
       ritual: !!o.ritual,
-      notes: o.notes || ""
+      notes: o.notes || "",
+      castTime: o.castTime || "",
+      range: o.range || ""
     });
     c.spells = [sp("Fire Bolt", 0, {
+      castTime: "1 action",
+      range: "120 ft.",
       notes: "Ranged spell attack, 120 ft. 1d10 fire (2d10 at level 5)."
     }), sp("Mage Hand", 0, {
+      castTime: "1 action",
+      range: "30 ft.",
       notes: "Spectral hand, 30 ft., lasts 1 minute."
     }), sp("Prestidigitation", 0, {
+      castTime: "1 action",
+      range: "10 ft.",
       notes: "Minor magical tricks."
     }), sp("Ray of Frost", 0, {
+      castTime: "1 action",
+      range: "60 ft.",
       notes: "1d8 cold, speed reduced by 10 ft."
     }), sp("Magic Missile", 1, {
+      castTime: "1 action",
+      range: "120 ft.",
       prepared: true,
       notes: "3 darts, 1d4+1 force each. Auto-hit."
     }), sp("Shield", 1, {
+      castTime: "1 reaction",
+      range: "Self",
       prepared: true,
       notes: "Reaction: +5 AC until start of next turn."
     }), sp("Mage Armor", 1, {
+      castTime: "1 action",
+      range: "Touch",
       prepared: true,
       notes: "AC 13 + Dex for 8 hours."
     }), sp("Detect Magic", 1, {
@@ -4359,6 +4382,40 @@ const SheetApp = (() => {
       className: `rounded-md py-1 text-xs font-semibold ${value === k ? "bg-pri-500 text-neutral-950" : "text-neutral-400"}`
     }, l)));
   }
+
+  // Small boxed marker for action economy: green A, orange BA, purple R
+  const ACTION_MARK = {
+    A: {
+      label: "Action",
+      cls: "border-emerald-500 text-emerald-300 bg-emerald-500/10"
+    },
+    BA: {
+      label: "Bonus action",
+      cls: "border-orange-500 text-orange-300 bg-orange-500/10"
+    },
+    R: {
+      label: "Reaction",
+      cls: "border-purple-500 text-purple-300 bg-purple-500/10"
+    }
+  };
+  function spellActionType(castTime) {
+    const t = String(castTime || "").toLowerCase();
+    if (/reaction/.test(t)) return "R";
+    if (/bonus/.test(t)) return "BA";
+    if (/\baction\b/.test(t)) return "A";
+    return "";
+  }
+  function ActionMarker({
+    type
+  }) {
+    const m = ACTION_MARK[type];
+    if (!m) return null;
+    return /*#__PURE__*/React.createElement("span", {
+      title: m.label,
+      "aria-label": m.label,
+      className: `shrink-0 inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1 rounded border text-[10px] font-bold leading-none ${m.cls}`
+    }, type);
+  }
   function Modal({
     title,
     onClose,
@@ -4761,16 +4818,33 @@ const SheetApp = (() => {
         range: v
       }),
       placeholder: "Range (60 ft)"
-    }), /*#__PURE__*/React.createElement(TextIn, {
+    }), /*#__PURE__*/React.createElement("select", {
+      value: a.actionType ?? "A",
+      onChange: e => ops.upd(a.id, {
+        actionType: e.target.value
+      }),
+      "aria-label": "Action type",
+      className: `${inputCls} col-span-2`
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "A"
+    }, "Action"), /*#__PURE__*/React.createElement("option", {
+      value: "BA"
+    }, "Bonus action"), /*#__PURE__*/React.createElement("option", {
+      value: "R"
+    }, "Reaction"), /*#__PURE__*/React.createElement("option", {
+      value: ""
+    }, "No marker"))), /*#__PURE__*/React.createElement(TextIn, {
       value: a.notes,
       onChange: v => ops.upd(a.id, {
         notes: v
       }),
       placeholder: "Notes (properties)",
-      className: "col-span-2"
-    }))) : /*#__PURE__*/React.createElement("div", {
+      className: "w-full"
+    })) : /*#__PURE__*/React.createElement("div", {
       className: "flex items-center gap-2"
-    }, /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement(ActionMarker, {
+      type: a.actionType ?? "A"
+    }), /*#__PURE__*/React.createElement("div", {
       className: "flex-1 min-w-0"
     }, /*#__PURE__*/React.createElement("p", {
       className: "font-semibold text-sm truncate"
@@ -5158,6 +5232,8 @@ const SheetApp = (() => {
     }, /*#__PURE__*/React.createElement("span", {
       className: `w-2 h-2 rounded-full shrink-0 ${s.prepared ? "bg-pri-400" : "bg-neutral-700"}`,
       title: s.prepared ? "Prepared" : "Not prepared"
+    }), /*#__PURE__*/React.createElement(ActionMarker, {
+      type: spellActionType(s.castTime)
     }), /*#__PURE__*/React.createElement("span", {
       className: "flex-1 min-w-0"
     }, /*#__PURE__*/React.createElement("span", {
@@ -5167,8 +5243,9 @@ const SheetApp = (() => {
     }, [s.castTime, s.range].filter(Boolean).join(" · "))), s.conc && /*#__PURE__*/React.createElement("span", {
       className: "text-[10px] rounded border border-yellow-700 text-yellow-300 px-1"
     }, "C"), s.ritual && /*#__PURE__*/React.createElement("span", {
+      title: "Ritual",
       className: "text-[10px] rounded border border-sky-700 text-sky-300 px-1"
-    }, "R"), open ? /*#__PURE__*/React.createElement(IconChevU, {
+    }, "Rit"), open ? /*#__PURE__*/React.createElement(IconChevU, {
       className: "w-4 h-4 text-neutral-500"
     }) : /*#__PURE__*/React.createElement(IconChevD, {
       className: "w-4 h-4 text-neutral-500"
@@ -6614,6 +6691,38 @@ const SheetApp = (() => {
   }) {
     const [kind, setKind] = useState("short");
     const d = derive(c);
+    const hd = num(c.hitDie) || 8;
+    const [hdCount, setHdCount] = useState(1);
+    const [gain, setGain] = useState("");
+    const [rollNote, setRollNote] = useState("");
+    const cnt = Math.min(Math.max(1, hdCount), Math.max(1, d.hitDiceLeft));
+    const rollForMe = () => {
+      const rolls = Array.from({
+        length: cnt
+      }, () => rnd(hd));
+      const total = rolls.reduce((t, r) => t + Math.max(0, r + d.mods.con), 0);
+      setGain(String(total));
+      setRollNote(`${cnt}d${hd} [${rolls.join(", ")}] ${d.mods.con >= 0 ? "+" : "−"} ${Math.abs(d.mods.con)} each`);
+    };
+    const applyDice = () => {
+      const g = Math.max(0, Math.floor(Number(gain)));
+      if (gain === "" || !Number.isFinite(g)) {
+        toast("Enter the HP gained, or tap Roll for me");
+        return;
+      }
+      if (d.hitDiceLeft === 0) {
+        toast("No hit dice left");
+        return;
+      }
+      set(x => ({
+        ...healChar(x, g),
+        hitDiceUsed: num(x.hitDiceUsed) + cnt
+      }), "Hit dice");
+      toast(`Spent ${cnt} hit di${cnt === 1 ? "e" : "ce"}, regained ${g} HP`);
+      setGain("");
+      setRollNote("");
+      setHdCount(1);
+    };
     const finishShort = () => {
       set(x => ({
         ...x,
@@ -6692,7 +6801,62 @@ const SheetApp = (() => {
       onClick: spendHitDie,
       disabled: d.hitDiceLeft === 0 || num(c.hp.cur) >= num(c.hp.max),
       className: `${btnGhost} w-full disabled:opacity-40`
-    }, "Spend a hit die (d", num(c.hitDie), " ", fmt(d.mods.con), ")"), /*#__PURE__*/React.createElement("button", {
+    }, "Spend a hit die (d", num(c.hitDie), " ", fmt(d.mods.con), ")"), /*#__PURE__*/React.createElement("div", {
+      className: "rounded-xl border border-neutral-700/80 bg-neutral-950/60 p-3 space-y-2"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-xs font-semibold text-neutral-300"
+    }, "Rolled real dice?"), /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-2"
+    }, /*#__PURE__*/React.createElement("label", {
+      htmlFor: "hd-count",
+      className: "text-xs text-neutral-400 shrink-0"
+    }, "Hit dice spent"), /*#__PURE__*/React.createElement("select", {
+      id: "hd-count",
+      value: cnt,
+      onChange: e => setHdCount(Number(e.target.value)),
+      "aria-label": "Hit dice spent",
+      disabled: d.hitDiceLeft === 0,
+      className: `${inputCls} flex-1`
+    }, Array.from({
+      length: Math.max(1, d.hitDiceLeft)
+    }, (_, i) => i + 1).map(n => /*#__PURE__*/React.createElement("option", {
+      key: n,
+      value: n
+    }, n, " × d", hd)))), /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-2"
+    }, /*#__PURE__*/React.createElement("label", {
+      htmlFor: "hd-gain",
+      className: "text-xs text-neutral-400 shrink-0"
+    }, "HP gained"), /*#__PURE__*/React.createElement("input", {
+      id: "hd-gain",
+      type: "number",
+      inputMode: "numeric",
+      min: "0",
+      value: gain,
+      onChange: e => {
+        setGain(e.target.value);
+        setRollNote("");
+      },
+      placeholder: "Total from your dice",
+      "aria-label": "HP gained",
+      className: `${inputCls} flex-1 text-center`
+    })), rollNote && /*#__PURE__*/React.createElement("p", {
+      className: "text-[11px] text-neutral-500 text-center"
+    }, rollNote), /*#__PURE__*/React.createElement("div", {
+      className: "grid grid-cols-2 gap-2"
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: rollForMe,
+      disabled: d.hitDiceLeft === 0,
+      "aria-label": "Roll for me",
+      className: `${btnGhost} disabled:opacity-40`
+    }, "Roll for me"), /*#__PURE__*/React.createElement("button", {
+      onClick: applyDice,
+      disabled: d.hitDiceLeft === 0,
+      "aria-label": "Apply hit dice",
+      className: `${btnCls} bg-emerald-700 hover:bg-emerald-600 text-white disabled:opacity-40`
+    }, "Apply")), /*#__PURE__*/React.createElement("p", {
+      className: "text-[11px] text-neutral-500"
+    }, "Enter the total HP your dice gave you (include your Con modifier), or let the app roll. Apply uses up that many hit dice.")), /*#__PURE__*/React.createElement("button", {
       onClick: finishShort,
       className: `${btnPrimary} w-full`
     }, "Finish short rest"), /*#__PURE__*/React.createElement("p", {
