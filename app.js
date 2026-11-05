@@ -4398,7 +4398,9 @@ const SheetApp = (() => {
       cls: "border-purple-500 text-purple-300 bg-purple-500/10"
     }
   };
+  const CAST_PRESETS = ["1 action", "1 bonus action", "1 reaction"];
   function spellActionType(castTime) {
+    if (!castTime) return "A";
     const t = String(castTime || "").toLowerCase();
     if (/reaction/.test(t)) return "R";
     if (/bonus/.test(t)) return "BA";
@@ -5006,7 +5008,7 @@ const SheetApp = (() => {
       }),
       label: "Prof."
     }, fmt(d.pb))), /*#__PURE__*/React.createElement("div", {
-      className: "grid grid-cols-3 gap-2"
+      className: "grid grid-cols-2 gap-2"
     }, /*#__PURE__*/React.createElement("button", {
       onClick: () => set(x => ({
         ...x,
@@ -5025,16 +5027,7 @@ const SheetApp = (() => {
         className: "w-5 h-5"
       }),
       label: "Passive Perc."
-    }, d.passive), /*#__PURE__*/React.createElement(StatTile, {
-      icon: /*#__PURE__*/React.createElement(IconD20, {
-        className: "w-5 h-5"
-      }),
-      label: `Hit Dice d${num(c.hitDie)}`,
-      onClick: spendHitDie,
-      disabled: d.hitDiceLeft === 0
-    }, d.hitDiceLeft, /*#__PURE__*/React.createElement("span", {
-      className: "text-xs text-neutral-500"
-    }, "/", num(c.level))))))), /*#__PURE__*/React.createElement(Panel, {
+    }, d.passive))))), /*#__PURE__*/React.createElement(Panel, {
       pid: "abilities",
       label: "Ability Scores"
     }, /*#__PURE__*/React.createElement(Card, {
@@ -5276,13 +5269,28 @@ const SheetApp = (() => {
       value: l
     }, "Level ", l)))), /*#__PURE__*/React.createElement("div", {
       className: "grid grid-cols-2 gap-1.5"
-    }, /*#__PURE__*/React.createElement(TextIn, {
+    }, s.ritual ? /*#__PURE__*/React.createElement(TextIn, {
       value: s.castTime || "",
       onChange: v => ops.upd(s.id, {
         castTime: v
       }),
-      placeholder: "Casting time (1 action)"
-    }), /*#__PURE__*/React.createElement(TextIn, {
+      placeholder: "Casting time (10 minutes)"
+    }) : /*#__PURE__*/React.createElement("select", {
+      value: s.castTime || "1 action",
+      onChange: e => ops.upd(s.id, {
+        castTime: e.target.value
+      }),
+      "aria-label": "Casting time",
+      className: inputCls
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "1 action"
+    }, "Action"), /*#__PURE__*/React.createElement("option", {
+      value: "1 bonus action"
+    }, "Bonus Action"), /*#__PURE__*/React.createElement("option", {
+      value: "1 reaction"
+    }, "Reaction"), s.castTime && !CAST_PRESETS.includes(s.castTime) && /*#__PURE__*/React.createElement("option", {
+      value: s.castTime
+    }, s.castTime)), /*#__PURE__*/React.createElement(TextIn, {
       value: s.range || "",
       onChange: v => ops.upd(s.id, {
         range: v
