@@ -3760,6 +3760,7 @@ const SheetApp = (() => {
         moved: 0
       },
       attacks: [],
+      others: [],
       resources: [],
       slotsHidden: false,
       panelOrder: {},
@@ -3846,6 +3847,39 @@ const SheetApp = (() => {
       damage: "1d4+2",
       type: "piercing",
       notes: "Finesse, light, thrown 20/60"
+    }];
+    c.others = [{
+      id: uid(),
+      name: "Potion of Healing",
+      effect: "heal",
+      amount: "2d4+2",
+      dmgType: "",
+      actionType: "BA",
+      notes: "Drink or administer",
+      mode: "qty",
+      qty: 2,
+      max: 0,
+      used: 0,
+      recharge: "long",
+      bar: false,
+      color: "accent",
+      display: "auto"
+    }, {
+      id: uid(),
+      name: "Alchemist's Fire",
+      effect: "damage",
+      amount: "1d4",
+      dmgType: "fire",
+      actionType: "A",
+      notes: "Thrown, 20 ft.",
+      mode: "qty",
+      qty: 1,
+      max: 0,
+      used: 0,
+      recharge: "long",
+      bar: false,
+      color: "accent",
+      display: "auto"
     }];
     c.spellAbility = "int";
     c.resources = [{
@@ -4864,6 +4898,242 @@ const SheetApp = (() => {
       className: "block text-[9px] font-normal uppercase text-rose-300/70 leading-none"
     }, a.type)))))));
   }
+  function OtherCard({
+    c,
+    set
+  }) {
+    const {
+      edit,
+      useOther
+    } = useContext(Ctx);
+    const ops = listOps(set, "others");
+    const [open, setOpen] = useState(true);
+    const list = c.others || [];
+    const mk = () => ({
+      name: "New item",
+      effect: "none",
+      amount: "",
+      dmgType: "",
+      actionType: "BA",
+      notes: "",
+      mode: "none",
+      qty: 1,
+      max: 1,
+      used: 0,
+      recharge: "long",
+      bar: false,
+      color: "accent",
+      display: "auto"
+    });
+    const pinBtn = o => /*#__PURE__*/React.createElement("button", {
+      onClick: () => ops.upd(o.id, {
+        bar: !o.bar
+      }),
+      "aria-pressed": !!o.bar,
+      "aria-label": `Pin ${o.name} to resource bar`,
+      className: `self-start text-xs rounded-lg border px-2.5 py-1 ${o.bar ? "border-pri-500 bg-pri-500/15 text-pri-200" : "border-neutral-700 text-neutral-400"}`
+    }, o.bar ? "On resource bar" : "Show on resource bar");
+    return /*#__PURE__*/React.createElement(Card, {
+      title: "Other",
+      icon: /*#__PURE__*/React.createElement(IconSparkles, {
+        className: "w-3.5 h-3.5"
+      }),
+      right: /*#__PURE__*/React.createElement("span", {
+        className: "flex items-center gap-2"
+      }, edit && open && /*#__PURE__*/React.createElement("button", {
+        onClick: () => ops.add(mk()),
+        "aria-label": "Add other item",
+        className: "text-xs text-pri-300 hover:text-pri-200 flex items-center gap-1"
+      }, /*#__PURE__*/React.createElement(IconPlus, {
+        className: "w-3.5 h-3.5"
+      }), "Add"), /*#__PURE__*/React.createElement("button", {
+        onClick: () => setOpen(v => !v),
+        "aria-label": "Toggle other",
+        "aria-expanded": open,
+        className: "text-neutral-400"
+      }, open ? /*#__PURE__*/React.createElement(IconChevU, {
+        className: "w-4 h-4"
+      }) : /*#__PURE__*/React.createElement(IconChevD, {
+        className: "w-4 h-4"
+      })))
+    }, !open ? /*#__PURE__*/React.createElement("p", {
+      className: "text-xs text-neutral-500"
+    }, list.length ? list.map(o => o.name).join(", ") : "Bonus actions, potions and other things to use in combat.") : /*#__PURE__*/React.createElement(React.Fragment, null, list.length === 0 && /*#__PURE__*/React.createElement("p", {
+      className: "text-xs text-neutral-500"
+    }, "Nothing here yet. Turn on edit mode (pencil) to add bonus actions, potions or other abilities."), /*#__PURE__*/React.createElement("div", {
+      className: "space-y-2"
+    }, list.map((o, i) => {
+      const tracked = o.mode === "uses" || o.mode === "qty";
+      const left = o.mode === "uses" ? num(o.max) - num(o.used) : o.mode === "qty" ? num(o.qty) : null;
+      return /*#__PURE__*/React.createElement("div", {
+        key: o.id,
+        className: "rounded-xl border border-neutral-700/80 bg-neutral-950/60 p-2"
+      }, edit ? /*#__PURE__*/React.createElement("div", {
+        className: "space-y-1.5"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "flex gap-1.5 items-center"
+      }, /*#__PURE__*/React.createElement(TextIn, {
+        value: o.name,
+        onChange: v => ops.upd(o.id, {
+          name: v
+        }),
+        placeholder: "Name",
+        className: "flex-1"
+      }), /*#__PURE__*/React.createElement("button", {
+        onClick: () => ops.move(o.id, -1),
+        disabled: i === 0,
+        "aria-label": "Move item up",
+        className: "text-neutral-500 disabled:opacity-20"
+      }, /*#__PURE__*/React.createElement(IconChevU, {
+        className: "w-4 h-4"
+      })), /*#__PURE__*/React.createElement("button", {
+        onClick: () => ops.move(o.id, 1),
+        disabled: i === list.length - 1,
+        "aria-label": "Move item down",
+        className: "text-neutral-500 disabled:opacity-20"
+      }, /*#__PURE__*/React.createElement(IconChevD, {
+        className: "w-4 h-4"
+      })), /*#__PURE__*/React.createElement("button", {
+        onClick: () => ops.del(o.id),
+        "aria-label": "Delete item",
+        className: "text-neutral-600 hover:text-rose-300"
+      }, /*#__PURE__*/React.createElement(IconTrash, {
+        className: "w-4 h-4"
+      }))), /*#__PURE__*/React.createElement("div", {
+        className: "grid grid-cols-3 gap-1.5"
+      }, /*#__PURE__*/React.createElement("select", {
+        value: o.effect || "none",
+        onChange: e => ops.upd(o.id, {
+          effect: e.target.value
+        }),
+        "aria-label": "Effect",
+        className: inputCls
+      }, /*#__PURE__*/React.createElement("option", {
+        value: "none"
+      }, "No roll"), /*#__PURE__*/React.createElement("option", {
+        value: "damage"
+      }, "Damage"), /*#__PURE__*/React.createElement("option", {
+        value: "heal"
+      }, "Healing")), o.effect === "damage" || o.effect === "heal" ? /*#__PURE__*/React.createElement(TextIn, {
+        value: o.amount || "",
+        onChange: v => ops.upd(o.id, {
+          amount: v
+        }),
+        placeholder: o.effect === "heal" ? "2d4+2" : "1d8+3"
+      }) : /*#__PURE__*/React.createElement("span", null), o.effect === "damage" ? /*#__PURE__*/React.createElement(TextIn, {
+        value: o.dmgType || "",
+        onChange: v => ops.upd(o.id, {
+          dmgType: v
+        }),
+        placeholder: "Type"
+      }) : /*#__PURE__*/React.createElement("span", null)), /*#__PURE__*/React.createElement("select", {
+        value: o.actionType ?? "BA",
+        onChange: e => ops.upd(o.id, {
+          actionType: e.target.value
+        }),
+        "aria-label": "Action type",
+        className: `${inputCls} w-full`
+      }, /*#__PURE__*/React.createElement("option", {
+        value: "A"
+      }, "Action"), /*#__PURE__*/React.createElement("option", {
+        value: "BA"
+      }, "Bonus action"), /*#__PURE__*/React.createElement("option", {
+        value: "R"
+      }, "Reaction"), /*#__PURE__*/React.createElement("option", {
+        value: ""
+      }, "No marker")), /*#__PURE__*/React.createElement("div", {
+        className: "flex items-center gap-2 text-xs text-neutral-400"
+      }, /*#__PURE__*/React.createElement("select", {
+        value: o.mode || "none",
+        onChange: e => ops.upd(o.id, {
+          mode: e.target.value,
+          ...(e.target.value === "uses" && num(o.max) < 1 ? {
+            max: 1,
+            used: 0
+          } : {})
+        }),
+        "aria-label": "Tracking",
+        className: `${inputCls} flex-1`
+      }, /*#__PURE__*/React.createElement("option", {
+        value: "none"
+      }, "No tracking"), /*#__PURE__*/React.createElement("option", {
+        value: "uses"
+      }, "Uses (recharge on rest)"), /*#__PURE__*/React.createElement("option", {
+        value: "qty"
+      }, "Quantity (no recharge)"))), o.mode === "uses" && /*#__PURE__*/React.createElement("div", {
+        className: "flex items-center gap-2 text-xs text-neutral-400"
+      }, /*#__PURE__*/React.createElement("span", null, "Uses"), /*#__PURE__*/React.createElement(Stepper, {
+        value: o.max,
+        onChange: v => ops.upd(o.id, {
+          max: v,
+          used: Math.min(num(o.used), v)
+        }),
+        min: 1,
+        max: 20,
+        label: "Max uses"
+      }), /*#__PURE__*/React.createElement("select", {
+        value: o.recharge || "long",
+        onChange: e => ops.upd(o.id, {
+          recharge: e.target.value
+        }),
+        "aria-label": "Recharge",
+        className: `${inputCls} flex-1`
+      }, /*#__PURE__*/React.createElement("option", {
+        value: "short"
+      }, "Short rest"), /*#__PURE__*/React.createElement("option", {
+        value: "long"
+      }, "Long rest"))), o.mode === "qty" && /*#__PURE__*/React.createElement("div", {
+        className: "flex items-center gap-2 text-xs text-neutral-400"
+      }, /*#__PURE__*/React.createElement("span", null, "Quantity"), /*#__PURE__*/React.createElement(Stepper, {
+        value: o.qty,
+        onChange: v => ops.upd(o.id, {
+          qty: v
+        }),
+        min: 0,
+        max: 99,
+        label: "Quantity"
+      })), tracked && pinBtn(o), o.mode === "uses" && /*#__PURE__*/React.createElement("div", {
+        className: "space-y-1"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-[11px] text-neutral-500"
+      }, "Pip color"), /*#__PURE__*/React.createElement(ColorPicker, {
+        value: o.color || "accent",
+        onChange: v => ops.upd(o.id, {
+          color: v
+        }),
+        label: `${o.name} pip color`
+      })), /*#__PURE__*/React.createElement(TextIn, {
+        value: o.notes || "",
+        onChange: v => ops.upd(o.id, {
+          notes: v
+        }),
+        placeholder: "Notes",
+        className: "w-full"
+      })) : /*#__PURE__*/React.createElement("div", {
+        className: "flex items-center gap-2"
+      }, /*#__PURE__*/React.createElement(ActionMarker, {
+        type: o.actionType ?? "BA"
+      }), /*#__PURE__*/React.createElement("div", {
+        className: "flex-1 min-w-0"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "font-semibold text-sm truncate"
+      }, o.name), (tracked || o.notes) && /*#__PURE__*/React.createElement("p", {
+        className: "text-xs text-neutral-500 truncate"
+      }, [o.mode === "qty" ? `×${num(o.qty)}` : o.mode === "uses" ? `${left}/${num(o.max)} left` : "", o.notes].filter(Boolean).join(" · "))), o.effect === "damage" || o.effect === "heal" ? /*#__PURE__*/React.createElement("button", {
+        onClick: () => useOther(o.id),
+        disabled: tracked && left <= 0,
+        "aria-label": `${o.effect === "heal" ? "Use healing" : "Roll damage for"} ${o.name}`,
+        className: `rounded-lg border px-2.5 py-1.5 text-sm font-bold disabled:opacity-40 ${o.effect === "heal" ? "border-emerald-700 bg-emerald-900/20 text-emerald-200 hover:bg-emerald-900/40" : "border-rose-800 bg-rose-900/20 text-rose-200 hover:bg-rose-900/40"}`
+      }, o.effect === "heal" ? "+" : "", o.amount || "—", /*#__PURE__*/React.createElement("span", {
+        className: `block text-[9px] font-normal uppercase leading-none ${o.effect === "heal" ? "text-emerald-300/70" : "text-rose-300/70"}`
+      }, o.effect === "heal" ? "heal" : o.dmgType)) : tracked ? /*#__PURE__*/React.createElement("button", {
+        onClick: () => useOther(o.id),
+        disabled: left <= 0,
+        "aria-label": `Use ${o.name}`,
+        className: "rounded-lg border border-neutral-600 bg-neutral-800/60 px-3 py-1.5 text-sm font-bold text-neutral-200 hover:bg-neutral-700 disabled:opacity-40"
+      }, "Use") : null));
+    }))));
+  }
   function SkillsCard({
     c,
     set
@@ -5109,6 +5379,12 @@ const SheetApp = (() => {
       pid: "attacks",
       label: "Attacks"
     }, /*#__PURE__*/React.createElement(AttacksCard, {
+      c: c,
+      set: set
+    })), /*#__PURE__*/React.createElement(Panel, {
+      pid: "other",
+      label: "Other"
+    }, /*#__PURE__*/React.createElement(OtherCard, {
       c: c,
       set: set
     })), /*#__PURE__*/React.createElement(Panel, {
@@ -6075,6 +6351,32 @@ const SheetApp = (() => {
         });
       }
     });
+    (c.others || []).forEach(o => {
+      if (!o.bar) return;
+      const initials = (o.name || "?").split(/\s+/).filter(Boolean).map(w => w[0].toUpperCase()).join("").slice(0, 3);
+      if (o.mode === "uses" && num(o.max) > 0) items.push({
+        k: `o${o.id}`,
+        kind: "other",
+        id: o.id,
+        label: initials,
+        total: num(o.max),
+        used: num(o.used),
+        color: COLOR_OPTS[o.color] || COLOR_OPTS.accent,
+        display: o.display || "auto",
+        name: o.name
+      });else if (o.mode === "qty") items.push({
+        k: `o${o.id}`,
+        kind: "other",
+        qtyMode: true,
+        id: o.id,
+        label: initials,
+        total: num(o.qty),
+        used: 0,
+        color: COLOR_OPTS.accent,
+        display: "number",
+        name: o.name
+      });
+    });
     return items;
   }
   function ResourceStrip({
@@ -6103,6 +6405,16 @@ const SheetApp = (() => {
           }
         };
       }
+      if (it.kind === "other") return {
+        ...x,
+        others: x.others.map(o => o.id !== it.id ? o : o.mode === "qty" ? {
+          ...o,
+          qty: clamp(num(o.qty) - dir, 0, 999)
+        } : {
+          ...o,
+          used: clamp(num(o.used) + dir, 0, num(o.max))
+        })
+      };
       if (it.kind === "feature") return {
         ...x,
         features: x.features.map(f => f.id === it.id ? {
@@ -6159,7 +6471,9 @@ const SheetApp = (() => {
         change(it, 1);
       },
       className: "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[9px] font-bold text-neutral-400 active:bg-neutral-800 select-none touch-manipulation"
-    }, it.label, (it.display === "number" ? false : it.display === "pips" ? it.total <= 20 : it.total <= 8) ? /*#__PURE__*/React.createElement(MiniDots, {
+    }, it.label, it.qtyMode ? /*#__PURE__*/React.createElement("span", {
+      className: "tabular-nums text-neutral-300"
+    }, "×", it.total) : (it.display === "number" ? false : it.display === "pips" ? it.total <= 20 : it.total <= 8) ? /*#__PURE__*/React.createElement(MiniDots, {
       total: it.total,
       used: it.used,
       color: it.color
@@ -6179,6 +6493,50 @@ const SheetApp = (() => {
     item,
     onClose
   }) {
+    const oth = item.kind === "other" ? (c.others || []).find(x => x.id === item.id) : null;
+    const updO = patch => set(x => ({
+      ...x,
+      others: x.others.map(q => q.id === item.id ? {
+        ...q,
+        ...patch
+      } : q)
+    }));
+    if (oth) {
+      return /*#__PURE__*/React.createElement(Modal, {
+        title: oth.name,
+        onClose: onClose
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-sm text-neutral-300"
+      }, oth.mode === "qty" ? `Quantity: ${num(oth.qty)}. Tap on the bar to use one, hold to add one back. Change the amount in Actions → Other (edit mode).` : `Uses (${num(oth.max) - num(oth.used)}/${num(oth.max)} left). Change uses or recharge in Actions → Other (edit mode).`), oth.mode === "uses" && /*#__PURE__*/React.createElement("div", {
+        className: "mt-3 space-y-2"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-xs text-neutral-500"
+      }, "Color"), /*#__PURE__*/React.createElement(ColorPicker, {
+        value: oth.color || "accent",
+        onChange: v => updO({
+          color: v
+        }),
+        label: "Item color"
+      }), /*#__PURE__*/React.createElement("p", {
+        className: "text-xs text-neutral-500 pt-1"
+      }, "Show as"), /*#__PURE__*/React.createElement(DisplayToggle, {
+        value: oth.display || "auto",
+        onChange: v => updO({
+          display: v
+        })
+      })), /*#__PURE__*/React.createElement("button", {
+        onClick: () => {
+          updO({
+            bar: false
+          });
+          onClose();
+        },
+        className: `${btnDanger} w-full mt-4`
+      }, "Remove from resource bar"), /*#__PURE__*/React.createElement("button", {
+        onClick: onClose,
+        className: `${btnGhost} w-full mt-2`
+      }, "Done"));
+    }
     const feat = item.kind === "feature" ? c.features.find(x => x.id === item.id) : null;
     const updF = patch => set(x => ({
       ...x,
@@ -6375,6 +6733,17 @@ const SheetApp = (() => {
       }));
       onClose();
     };
+    const pinnableO = (c.others || []).filter(o => !o.bar && (o.mode === "uses" && num(o.max) > 0 || o.mode === "qty"));
+    const pinO = id => {
+      set(x => ({
+        ...x,
+        others: x.others.map(o => o.id === id ? {
+          ...o,
+          bar: true
+        } : o)
+      }));
+      onClose();
+    };
     const hasSlotData = [1, 2, 3, 4, 5, 6, 7, 8, 9].some(l => num(c.slots[l].max) > 0);
     return /*#__PURE__*/React.createElement(Modal, {
       title: "Add Resource",
@@ -6416,7 +6785,7 @@ const SheetApp = (() => {
       className: "border-t border-neutral-800 pt-2"
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-xs font-semibold text-neutral-400 mb-1.5"
-    }, "From your features"), pinnable.length === 0 ? /*#__PURE__*/React.createElement("p", {
+    }, "From your features"), pinnable.length + pinnableO.length === 0 ? /*#__PURE__*/React.createElement("p", {
       className: "text-xs text-neutral-600"
     }, "No features with uses to add. Give a feature uses under Traits, in Features (edit mode).") : /*#__PURE__*/React.createElement("div", {
       className: "flex flex-wrap gap-1.5"
@@ -6427,7 +6796,14 @@ const SheetApp = (() => {
       className: "text-xs rounded-full border border-pri-700/60 bg-neutral-900 hover:bg-neutral-800 px-2.5 py-1 text-neutral-200"
     }, "+ ", f.name, " ", /*#__PURE__*/React.createElement("span", {
       className: "text-neutral-500"
-    }, num(f.max)))))), c.slotsHidden && hasSlotData && /*#__PURE__*/React.createElement("button", {
+    }, num(f.max)))), pinnableO.map(o => /*#__PURE__*/React.createElement("button", {
+      key: o.id,
+      onClick: () => pinO(o.id),
+      "aria-label": `Add ${o.name} to resource bar`,
+      className: "text-xs rounded-full border border-pri-700/60 bg-neutral-900 hover:bg-neutral-800 px-2.5 py-1 text-neutral-200"
+    }, "+ ", o.name, " ", /*#__PURE__*/React.createElement("span", {
+      className: "text-neutral-500"
+    }, o.mode === "qty" ? `×${num(o.qty)}` : num(o.max)))))), c.slotsHidden && hasSlotData && /*#__PURE__*/React.createElement("button", {
       onClick: () => {
         set(x => ({
           ...x,
@@ -6484,7 +6860,7 @@ const SheetApp = (() => {
       ...base.slots[i],
       ...((raw.slots || {})[i] || {})
     };
-    ["conditions", "attacks", "spells", "features", "items", "resources"].forEach(k => {
+    ["conditions", "attacks", "others", "spells", "features", "items", "resources"].forEach(k => {
       if (!Array.isArray(c[k])) c[k] = [];
     });
     c.panelOrder = raw.panelOrder && typeof raw.panelOrder === "object" ? raw.panelOrder : {};
@@ -6738,6 +7114,10 @@ const SheetApp = (() => {
           ...f,
           used: 0
         } : f),
+        others: x.others.map(o => o.mode === "uses" && o.recharge === "short" ? {
+          ...o,
+          used: 0
+        } : o),
         resources: x.resources.map(r => r.kind === "custom" && r.recharge === "short" ? {
           ...r,
           used: 0
@@ -6772,6 +7152,10 @@ const SheetApp = (() => {
             ...f,
             used: 0
           } : f),
+          others: x.others.map(o => o.mode === "uses" && (o.recharge === "short" || o.recharge === "long") ? {
+            ...o,
+            used: 0
+          } : o),
           resources: x.resources.map(r => r.kind === "custom" && (r.recharge === "short" || r.recharge === "long") ? {
             ...r,
             used: 0
@@ -7648,6 +8032,52 @@ const SheetApp = (() => {
         redo: () => rollDamage(label, expr)
       });
     };
+    const useOther = id => {
+      const o = (c.others || []).find(v => v.id === id);
+      if (!o) return;
+      const left = o.mode === "uses" ? num(o.max) - num(o.used) : o.mode === "qty" ? num(o.qty) : Infinity;
+      if (left <= 0) {
+        toast(`No ${o.name} left`);
+        return;
+      }
+      const consume = x => ({
+        ...x,
+        others: x.others.map(v => v.id !== id ? v : v.mode === "uses" ? {
+          ...v,
+          used: num(v.used) + 1
+        } : v.mode === "qty" ? {
+          ...v,
+          qty: Math.max(0, num(v.qty) - 1)
+        } : v)
+      });
+      if (o.effect === "damage" || o.effect === "heal") {
+        const r = rollExpression(o.amount);
+        if (!r) {
+          toast("Can't read that formula");
+          return;
+        }
+        if (o.effect === "heal") {
+          const heal = Math.max(0, r.total);
+          set(x => healChar(consume(x), heal), `Used ${o.name}`);
+          setResult({
+            label: o.name,
+            total: heal,
+            detail: r.detail,
+            note: "Hit points regained."
+          });
+        } else {
+          set(consume, `Used ${o.name}`);
+          setResult({
+            label: `${o.name} damage${o.dmgType ? ` (${o.dmgType})` : ""}`,
+            total: r.total,
+            detail: r.detail
+          });
+        }
+      } else {
+        set(consume, `Used ${o.name}`);
+        toast(`Used ${o.name}`);
+      }
+    };
     const spendHitDie = () => {
       if (d.hitDiceLeft === 0) {
         toast("No hit dice left");
@@ -7728,6 +8158,7 @@ const SheetApp = (() => {
       setSetting,
       rollD20,
       rollDamage,
+      useOther,
       spendHitDie,
       openModal: setModal,
       toast,
