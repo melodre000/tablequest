@@ -4908,7 +4908,18 @@ const SheetApp = (() => {
     } = useContext(Ctx);
     const ops = listOps(set, "others");
     const [open, setOpen] = useState(true);
+    const [manual, setManual] = useState(null); // item id being rolled by hand
+    const [gain, setGain] = useState("");
     const list = c.others || [];
+    const manualItem = manual ? list.find(v => v.id === manual) : null;
+    const closeManual = () => {
+      setManual(null);
+      setGain("");
+    };
+    const rollForMe = o => {
+      const r = rollExpression(o.amount);
+      if (r) setGain(String(Math.max(0, r.total)));
+    };
     const mk = () => ({
       name: "New item",
       effect: "none",
@@ -5117,9 +5128,39 @@ const SheetApp = (() => {
         className: "flex-1 min-w-0"
       }, /*#__PURE__*/React.createElement("p", {
         className: "font-semibold text-sm truncate"
-      }, o.name), (tracked || o.notes) && /*#__PURE__*/React.createElement("p", {
-        className: "text-xs text-neutral-500 truncate"
-      }, [o.mode === "qty" ? `×${num(o.qty)}` : o.mode === "uses" ? `${left}/${num(o.max)} left` : "", o.notes].filter(Boolean).join(" · "))), o.effect === "damage" || o.effect === "heal" ? /*#__PURE__*/React.createElement("button", {
+      }, o.name), (tracked || o.notes) && /*#__PURE__*/React.createElement("div", {
+        className: "flex items-center gap-1 text-xs text-neutral-500 min-w-0"
+      }, o.mode === "qty" && /*#__PURE__*/React.createElement("span", {
+        className: "inline-flex items-center gap-1 shrink-0"
+      }, /*#__PURE__*/React.createElement("button", {
+        onClick: () => ops.upd(o.id, {
+          qty: Math.max(0, num(o.qty) - 1)
+        }, o.name),
+        disabled: num(o.qty) <= 0,
+        "aria-label": `Decrease ${o.name} quantity`,
+        className: "w-6 h-6 rounded-md bg-neutral-800 text-neutral-200 flex items-center justify-center disabled:opacity-30"
+      }, "−"), /*#__PURE__*/React.createElement("span", {
+        className: "min-w-[1.5rem] text-center font-semibold text-neutral-300 tabular-nums"
+      }, "×", num(o.qty)), /*#__PURE__*/React.createElement("button", {
+        onClick: () => ops.upd(o.id, {
+          qty: Math.min(999, num(o.qty) + 1)
+        }, o.name),
+        "aria-label": `Increase ${o.name} quantity`,
+        className: "w-6 h-6 rounded-md bg-neutral-800 text-neutral-200 flex items-center justify-center"
+      }, "+")), /*#__PURE__*/React.createElement("span", {
+        className: "truncate"
+      }, [o.mode === "uses" ? `${left}/${num(o.max)} left` : "", o.notes].filter(Boolean).join(" · ")))), o.effect === "heal" && /*#__PURE__*/React.createElement("button", {
+        onClick: () => {
+          setManual(o.id);
+          setGain("");
+        },
+        disabled: tracked && left <= 0,
+        "aria-label": `Enter roll for ${o.name}`,
+        title: "Rolled real dice? Enter the result",
+        className: "rounded-lg border border-neutral-600 bg-neutral-800/60 w-9 h-9 flex items-center justify-center text-neutral-300 hover:bg-neutral-700 disabled:opacity-40"
+      }, /*#__PURE__*/React.createElement(IconD20, {
+        className: "w-4 h-4"
+      })), o.effect === "damage" || o.effect === "heal" ? /*#__PURE__*/React.createElement("button", {
         onClick: () => useOther(o.id),
         disabled: tracked && left <= 0,
         "aria-label": `${o.effect === "heal" ? "Use healing" : "Roll damage for"} ${o.name}`,
@@ -5132,7 +5173,41 @@ const SheetApp = (() => {
         "aria-label": `Use ${o.name}`,
         className: "rounded-lg border border-neutral-600 bg-neutral-800/60 px-3 py-1.5 text-sm font-bold text-neutral-200 hover:bg-neutral-700 disabled:opacity-40"
       }, "Use") : null));
-    }))));
+    }))), manualItem && /*#__PURE__*/React.createElement(Modal, {
+      title: manualItem.name,
+      onClose: closeManual
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-sm text-neutral-300"
+    }, "Rolled your own dice? Enter the HP gained, or let the app roll ", manualItem.amount || "it", ". Applying uses one ", manualItem.mode === "qty" ? "from your quantity" : manualItem.mode === "uses" ? "use" : "time", "."), /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-2 mt-3"
+    }, /*#__PURE__*/React.createElement("label", {
+      htmlFor: "oh-gain",
+      className: "text-xs text-neutral-400 shrink-0"
+    }, "HP gained"), /*#__PURE__*/React.createElement("input", {
+      id: "oh-gain",
+      type: "number",
+      inputMode: "numeric",
+      min: "0",
+      value: gain,
+      onChange: e => setGain(e.target.value),
+      placeholder: "Total from your dice",
+      "aria-label": "HP gained",
+      className: `${inputCls} flex-1 text-center`
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "grid grid-cols-2 gap-2 mt-3"
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => rollForMe(manualItem),
+      "aria-label": "Roll for me",
+      className: btnGhost
+    }, "Roll for me"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        if (gain === "") return;
+        useOther(manualItem.id, gain);
+        closeManual();
+      },
+      "aria-label": "Apply healing",
+      className: `${btnCls} bg-emerald-700 hover:bg-emerald-600 text-white`
+    }, "Apply"))));
   }
   function SkillsCard({
     c,
@@ -8032,7 +8107,7 @@ const SheetApp = (() => {
         redo: () => rollDamage(label, expr)
       });
     };
-    const useOther = id => {
+    const useOther = (id, manual) => {
       const o = (c.others || []).find(v => v.id === id);
       if (!o) return;
       const left = o.mode === "uses" ? num(o.max) - num(o.used) : o.mode === "qty" ? num(o.qty) : Infinity;
@@ -8051,7 +8126,10 @@ const SheetApp = (() => {
         } : v)
       });
       if (o.effect === "damage" || o.effect === "heal") {
-        const r = rollExpression(o.amount);
+        const r = manual !== undefined && o.effect === "heal" ? {
+          total: Math.floor(Number(manual)) || 0,
+          detail: "Rolled by hand"
+        } : rollExpression(o.amount);
         if (!r) {
           toast("Can't read that formula");
           return;
